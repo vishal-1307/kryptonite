@@ -136,15 +136,17 @@ test('AES-128 FIPS-197 Appendix C.1 via method API', () => {
   const enc = aes.encrypt(v);
   assert.equal(enc.output, '69c4e0d86a7b0430d8cdb78070b4c55a');
   assert.equal(aes.decrypt({ ...v, block: enc.output }).output, '00112233445566778899aabbccddeeff');
-  assert.equal(enc.steps.length, 3 + 40 + 1);
+  assert.equal(enc.steps.length, 3 + 40 + 1 + 2); // load, key expansion ×2, 40 round ops, ciphertext, avalanche, modes
 });
 
 test('AES-128 text mode round trip', () => {
-  const enc = aes.encrypt({ format: 'text', block: 'Two One Nine Two', key: 'Thats my Kung Fu' });
+  const enc = aes.encrypt({ format: 'text', block: 'Two One Nine Two', keyFormat: 'text', key: 'Thats my Kung Fu' });
   assert.equal(enc.output, '29c3505f571420f6402299b31a02d73a');
-  assert.equal(aes.decrypt({ format: 'text', block: enc.output, key: 'Thats my Kung Fu' }).output, 'Two One Nine Two');
-  const short = aes.encrypt({ format: 'text', block: 'hi', key: 'k' });
-  assert.equal(aes.decrypt({ format: 'text', block: short.output, key: 'k' }).output, 'hi');
+  assert.equal(aes.decrypt({ format: 'text', block: enc.output, keyFormat: 'text', key: 'Thats my Kung Fu' }).output, 'Two One Nine Two');
+  // Text plaintext with a HEX key (QA bug: key used to be parsed with the plaintext format).
+  const short = aes.encrypt({ format: 'text', block: 'hi', keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' });
+  assert.ok(short.steps.some((s) => /Padding: 14 zero bytes/.test(s.title)), 'explicit padding step');
+  assert.equal(aes.decrypt({ format: 'text', block: short.output, keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' }).output, 'hi');
   assert.throws(() => aes.encrypt({ format: 'hex', block: 'abcd', key: '00' }));
 });
 
@@ -205,5 +207,81 @@ test('Base64 RFC 4648 vectors and round trip', () => {
   const t = 'Hello, नमस्ते 🔐';
   assert.equal(base64.decode({ text: base64.encode({ text: t }).output }).output, t);
   assert.equal(base64.encode({ text: t }).output, Buffer.from(t).toString('base64'));
-  assert.throws(() => b64decode('abc'));
+  assert.throws(() => b64decode('a'));
+});
+
+// ---------------------------------------------------------------- review round 1: new validation
+test('AES key validation: exact 16 bytes, no silent padding', async () => {
+  const { parseKey } = await import('../methods/aes.js');
+  assert.throws(() => parseKey('abc', 'text'), /exactly 16 bytes.*3 bytes/);
+  assert.throws(() => aes.encrypt({ format: 'text', block: 'hi', keyFormat: 'text', key: 'abc' }), /exactly 16 bytes/);
+  assert.throws(() => parseKey('2b7e15', 'hex'), /exactly 32 hex characters.*6/);
+  assert.throws(() => parseKey('Thats my Kung Fu', 'hex'), /switch "Key format" to Text/);
+  assert.equal(parseKey('2B7E1516 28AED2A6 ABF71588 09CF4F3C', 'hex').length, 16);
+  const keyField = aes.inputs.find((i) => i.id === 'key');
+  assert.match(keyField.validate('abc', { keyFormat: 'text' }), /exactly 16 bytes/);
+  assert.equal(keyField.validate('Thats my Kung Fu', { keyFormat: 'text' }), null);
+  assert.match(aes.validate({ format: 'text', block: 'x'.repeat(17) }, 'encrypt'), /at most 16 bytes/);
+  assert.match(aes.validate({ format: 'text', block: 'hello' }, 'decrypt'), /ciphertext must be hex/);
+  const enc = aes.encrypt({ format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' });
+  assert.ok(enc.steps.some((s) => /modes of operation/.test(s.title)) && enc.steps.some((s) => /Avalanche/.test(s.title)));
+});
+
+test('Diffie–Hellman rejects trivial generators and warns about small subgroups', async () => {
+  const { orderOf } = await import('../methods/diffiehellman.js');
+  assert.equal(orderOf(5, 23), 22n); assert.equal(orderOf(22, 23), 2n); assert.equal(orderOf(2, 23), 11n);
+  assert.match(dhMethod.validate({ p: 23, g: 22, a: 4, b: 3 }), /trivial generator/);
+  assert.equal(dhMethod.validate({ p: 23, g: 2, a: 4, b: 3 }), null);
+  const warn = dhMethod.exchange({ p: 23, g: 2, a: 4, b: 3 });
+  assert.ok(warn.steps.some((s) => /only produce 11/.test(s.explanation)));
+  const ok = dhMethod.exchange({ p: 23, g: 5, a: 4, b: 3 });
+  assert.ok(ok.steps.some((s) => /man|middle/i.test(s.title)), 'MITM step');
+  assert.ok(ok.steps.some((s) => /HKDF/.test(s.explanation)), 'KDF wording');
+});
+
+test('RSA: extended Euclid table derives d; helpful error messages', async () => {
+  const { inverseTable, suggestE } = await import('../methods/rsa.js');
+  const t = inverseTable(17, 3120);
+  assert.equal(t.d, 2753n);
+  assert.equal(t.rows.at(-1).r, 1n);
+  for (const r of t.rows) assert.equal((((r.t * 17n) % 3120n) + 3120n) % 3120n, r.r % 3120n);
+  assert.ok(!suggestE(3120n).includes(65537n));
+  assert.throws(() => rsa.encrypt({ p: 61, q: 53, e: 6, format: 'text', message: 'x' }), /Try 7, 11, 17, 19/);
+  assert.throws(() => rsa.encrypt({ p: 61, q: 53, e: 17, format: 'text', message: '😀' }), /larger than 128512/);
+  const res = rsa.encrypt({ p: 61, q: 53, e: 17, format: 'text', message: 'HI' });
+  assert.ok(res.steps.some((s) => /textbook RSA is unsafe/.test(s.title)));
+});
+
+test('Caesar brute force on short text shows top 3 instead of one confident answer', () => {
+  const r = caesar.attack({ text: 'Lipps' });
+  assert.match(r.outputLabel, /top 3/);
+  assert.ok(r.candidates.some((c) => c.k === 4 && c.guess === 'Hello'));
+  assert.equal(r.candidates.length, 3);
+});
+
+test('SHA-256 wording: not for passwords; security notes step', () => {
+  assert.doesNotMatch(sha256.description, /Used for passwords/);
+  assert.match(sha256.description, /bcrypt or Argon2/);
+  assert.ok(sha256.hash({ text: 'abc' }).steps.some((s) => s.title === 'Security notes'));
+});
+
+test('Playfair empty key is allowed with a warning', () => {
+  const r = playfair.encrypt({ text: 'hello', key: '' });
+  assert.ok(r.steps.some((s) => /Empty key/.test(s.title)));
+  assert.equal(playfair.decrypt({ text: r.output, key: '' }).output, 'HELXLO');
+});
+
+test('Rail Fence: legs split at turning points; warning when rails ≥ length', () => {
+  const titles = railfence.encrypt({ text: 'WEAREDISCOVERED', rails: 3 }).steps.map((s) => s.title);
+  assert.ok(titles.includes('Write characters 1–3 (going down)') && titles.includes('Write characters 4–5 (going up)'));
+  assert.ok(railfence.encrypt({ text: 'HI', rails: 3 }).steps.some((s) => /Too many rails/.test(s.title)));
+});
+
+test('Base64: empty string, base64url, unpadded, non-canonical, invalid UTF-8', () => {
+  assert.equal(base64.encode({ text: '' }).output, '');
+  assert.equal(base64.decode({ text: '' }).output, '');
+  assert.deepEqual(b64decode('-_8='), [0xfb, 0xff]);
+  assert.equal(base64.decode({ text: 'Zm9vYg' }).output, 'foob');
+  assert.throws(() => b64decode('Zh=='), /non-canonical/);
+  assert.match(base64.decode({ text: '/w==' }).outputLabel, /not valid UTF-8/);
 });
