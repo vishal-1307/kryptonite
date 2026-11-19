@@ -210,7 +210,7 @@ function renderMethod(method, actionId) {
     nodes = next;
     fresh.forEach((el, i) => anim.enter(el, { delay: i * 70 }));
     // Renderers that animate after being attached (they need layout) expose el.afterMount(ctx).
-    for (const x of next) if (typeof x.el.afterMount === 'function') { x.el.afterMount(ctx); }
+    for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(ctx);
   }
 
   let lastRun = null; // { action, output } of the last successful run
