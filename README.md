@@ -2,7 +2,7 @@
 
 A classroom tool that shows **how cryptographic algorithms work, step by step**. Pick a method, type your own message and key, and play through every step with an animation and a plain-English explanation. It replaces jumping between many separate websites during a lecture.
 
-**Live demo:** LIVE_URL
+**Live demo:** https://crypto-visualizer-pi.vercel.app
 
 | Classical | Modern | Other |
 |---|---|---|
