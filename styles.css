@@ -459,6 +459,7 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
   .all-steps summary { display: list-item; min-height: 44px; padding-block: .75rem; line-height: 1.4; box-sizing: border-box; } /* list-item keeps the disclosure triangle */
   .scrub, .reg-slider { min-height: 44px; }
   .brand { min-height: 44px; }
+  .footer a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; padding-inline: .25rem; }
   .out-tools .btn { min-width: 44px; }
 }
 /* Reduced motion: tokens collapse to (almost) zero; JS animations fall back to short fades (visuals/anim.js). */
