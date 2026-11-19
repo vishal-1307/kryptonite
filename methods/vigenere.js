@@ -20,6 +20,7 @@ export function vigenere(text, key, decrypting) {
 }
 
 function run({ text, key }, decrypting) {
+  if (!String(text ?? '').length) throw new Error('Enter a message');
   const { out, keyRow, k } = vigenere(text, key, decrypting);
   const chars = [...text], outChars = [...out];
   const inLabel = decrypting ? 'Cipher' : 'Plain', outLabel = decrypting ? 'Plain' : 'Cipher';

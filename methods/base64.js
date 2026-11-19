@@ -123,9 +123,10 @@ export default {
       });
     }
     steps.push({ title: 'Result',
-      explanation: (badUtf8 ? `⚠ These ${bytes.length} bytes are not valid UTF-8 text (probably binary data such as an image or a key), so some characters are shown as �. The raw bytes in hex are shown too. ` : '')
-        + 'Anyone can do this — so never use Base64 to "hide" passwords or secrets.',
-      visual: badUtf8 ? [{ type: 'digest', data: { label: 'Decoded bytes (hex)', hex } }, { type: 'digest', data: { label: 'As text (lossy)', hex: out } }] : { type: 'digest', data: { label: 'Decoded text', hex: out || '(empty)' } } });
+      explanation: 'Anyone can do this — so never use Base64 to "hide" passwords or secrets.',
+      visual: badUtf8
+        ? { type: 'digest', data: { label: 'As text (lossy)', hex: out } }
+        : { type: 'digest', data: { label: 'Decoded text', hex: out || '(empty)' } } });
     return { output: out, outputLabel: badUtf8 ? `Decoded bytes are not valid UTF-8 text (hex: ${hex})` : 'Decoded text', steps };
   },
 };

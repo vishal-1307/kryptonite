@@ -30,6 +30,7 @@ export function hill(text, key, decrypting) {
   const K = parseKey(key);
   const info = inverseKey(K);
   if (info.dInv === null) throw new Error(`This key cannot be inverted: its determinant is ${info.det}, which shares a factor with 26 (gcd = ${gcd(info.det, 26)}). Choose a key whose determinant is odd and not 13.`);
+  if (!String(text ?? '').length) throw new Error('Enter a message');
   let s = onlyLetters(text);
   if (!s) throw new Error('Enter a message containing letters.');
   if (s.length % 2) {

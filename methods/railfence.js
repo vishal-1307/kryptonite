@@ -41,7 +41,7 @@ const show = (ch) => (ch === ' ' ? '␣' : ch);
 
 function run({ text, rails }, decrypting) {
   const chars = [...text];
-  if (!chars.length) throw new Error('Enter a message.');
+  if (!chars.length) throw new Error('Enter a message');
   const n = assertRails(rails);
   const rows = zigzag(chars.length, n);
   const plain = decrypting ? [...railDecrypt(text, n)] : chars;

@@ -54,6 +54,18 @@ export function inverseTable(e, phi) {
 
 const MAX_BLOCK_STEPS = 8;
 
+/** Square-and-multiply without building a trace (for results; teaching steps still use modPowTrace). */
+export function modPowFast(base, exp, m) {
+  base = BigInt(base) % BigInt(m); exp = BigInt(exp); m = BigInt(m);
+  let acc = 1n;
+  while (exp > 0n) {
+    if (exp & 1n) acc = (acc * base) % m;
+    base = (base * base) % m;
+    exp >>= 1n;
+  }
+  return acc;
+}
+
 /** Derive the key pair, throwing a friendly error for bad parameters. */
 export function rsaKeys(p, q, e) {
   p = BigInt(p); q = BigInt(q); e = BigInt(e);
@@ -73,8 +85,8 @@ export function parseNumbers(s) {
   return parts.map((x) => { if (!/^\d+$/.test(x)) throw new Error(`"${x}" is not a whole number.`); return BigInt(x); });
 }
 
-export function rsaEncryptBlocks(ms, k) { return ms.map((m) => modPowTrace(m, k.e, k.n).result); }
-export function rsaDecryptBlocks(cs, k) { return cs.map((c) => modPowTrace(c, k.d, k.n).result); }
+export function rsaEncryptBlocks(ms, k) { return ms.map((m) => modPowFast(m, k.e, k.n)); }
+export function rsaDecryptBlocks(cs, k) { return cs.map((c) => modPowFast(c, k.d, k.n)); }
 
 const paren = (x) => (x < 0n ? `(${x})` : `${x}`);
 
@@ -133,13 +145,13 @@ function powStep(x, exp, k, label, i, total) {
 }
 
 function run({ p, q, e, message, format }, decrypting) {
+  if (!String(message ?? '').length) throw new Error('Enter a message');
   const k = rsaKeys(p, q, e);
   const steps = keySteps(k);
   let blocks;
   if (decrypting) blocks = parseNumbers(message);
   else if (format === 'numbers') blocks = parseNumbers(message);
   else {
-    if (!message.length) throw new Error('Enter a message.');
     blocks = [...message].map((ch) => BigInt(ch.codePointAt(0)));
     steps.push({ title: 'Turn the text into numbers', explanation: 'RSA works on numbers, so each character becomes its Unicode code (e.g. A = 65). Real systems encrypt a padded block of bytes instead (OAEP padding).', visual: { type: 'textRows', data: { rows: [{ label: 'Char', cells: [...message].map((c) => (c === ' ' ? '␣' : c)) }, { label: 'Code m', cells: blocks.map(String) }] } } });
   }
@@ -153,7 +165,7 @@ function run({ p, q, e, message, format }, decrypting) {
     throw new Error(`${tooBig} is not smaller than n = ${k.n}. Each block must be less than n. This number is too large for the primes this demo allows (p and q must be at most 10,000,000); use larger primes in a real system, or a smaller message here.`);
   }
   const exp = decrypting ? k.d : k.e;
-  const results = blocks.map((x) => modPowTrace(x, exp, k.n).result);
+  const results = blocks.map((x) => modPowFast(x, exp, k.n));
   blocks.slice(0, MAX_BLOCK_STEPS).forEach((x, i) => steps.push(powStep(x, exp, k, decrypting ? 'decrypt' : 'encrypt', i, blocks.length)));
 
   let output = results.join(' ');
@@ -173,9 +185,10 @@ function run({ p, q, e, message, format }, decrypting) {
 
 /** Why "textbook" RSA (no padding) is unsafe, with numbers from the current key. */
 function unsafeStep(k) {
-  const enc = (m) => modPowTrace(m, k.e, k.n).result;
-  let f = 2n, tries = 0;
-  while (k.n % f !== 0n) { f++; tries++; }
+  const enc = (m) => modPowFast(m, k.e, k.n);
+  // Count of trial divisions from 2 up to the smaller prime (inclusive), without actually looping.
+  const f = k.p < k.q ? k.p : k.q;
+  const tries = f - 2n;
   const sample = k.n > 72n ? 72n : (k.n > 65n ? 65n : 2n);
   const sampleNote = sample === 72n ? "72 ('H')" : sample === 65n ? "65 ('A')" : '2';
   return {
@@ -185,7 +198,7 @@ function unsafeStep(k) {
       ['Deterministic: same message → same ciphertext', `With your key, m = ${sampleNote} always gives c = ${enc(sample)}, so an attacker can build a dictionary`, 'Random padding (OAEP)'],
       ['Some messages do not change', `With your key, 0 → ${enc(0n)}, 1 → ${enc(1n)}, ${k.n - 1n} → ${enc(k.n - 1n)}`, 'Padding'],
       ['Small e and small m: no wrap-around', 'Fixed example (not your key): n = 55, e = 3, m = 2 → c = 8; the integer cube root of 8 gives m = 2 back', 'Padding makes m large'],
-      ['Small n can be factored', `With your key, n = ${k.n} = ${f} × ${k.n / f}, found by trial division in ${tries + 1} tries; then φ and d follow`, 'n of 2048+ bits'],
+      ['Small n can be factored', `With your key, n = ${k.n} = ${f} × ${k.n / f}, found by trial division in ${tries + 1n} tries; then φ and d follow`, 'n of 2048+ bits'],
     ], highlightRows: [3] } },
   };
 }

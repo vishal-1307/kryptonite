@@ -43,6 +43,7 @@ function transformPair([a, b], sq, dir) {
 }
 
 function run({ text, key }, decrypting) {
+  if (!String(text ?? '').length) throw new Error('Enter a message');
   const sq = keySquare(key);
   let pairs;
   if (decrypting) {

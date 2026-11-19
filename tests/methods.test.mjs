@@ -293,6 +293,14 @@ test('Base64: empty string, base64url, unpadded, non-canonical, invalid UTF-8', 
   assert.deepEqual(b64decode('abc'), [105, 183]);
   assert.ok(abc.steps.some((s) => s.title === 'Decoded bytes are not valid UTF-8 text'));
   assert.match(abc.outputLabel, /not valid UTF-8 text \(hex: 69 b7\)/);
+  // The invalid-UTF-8 warning is shown once (its own step), not repeated in Result.
+  for (const res of [abc, base64.decode({ text: '/w==' })]) {
+    const mentions = res.steps.filter((s) => /not valid UTF-8/.test(s.title) || /not valid UTF-8/.test(s.explanation));
+    assert.equal(mentions.length, 1, 'warning should appear in exactly one step');
+    assert.equal(mentions[0].title, 'Decoded bytes are not valid UTF-8 text');
+    const result = res.steps.find((s) => s.title === 'Result');
+    assert.doesNotMatch(result.explanation, /not valid UTF-8/);
+  }
 });
 
 // ---------------------------------------------------------------- QA leftovers + review round 2
@@ -336,6 +344,29 @@ test('Empty message is rejected with "Enter a message"; SHA-256 and Base64 allow
   assert.deepEqual(validate(base64, 'decode', { text: '' }), { fieldErrors: {}, formError: null });
   assert.equal(sha256.hash({ text: '' }).output, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
   assert.equal(base64.encode({ text: '' }).output, '');
+
+  // Direct encrypt/decrypt (bypassing validate) throw the same exact message.
+  const emptyValues = (m) => {
+    const values = { ...defaults(m) };
+    if (m.id === 'aes') { values.format = 'text'; values.block = ''; }
+    else if (m.id === 'rsa') { values.format = 'text'; values.message = ''; }
+    else values[m.ioField || 'text'] = '';
+    return values;
+  };
+  for (const [m, action] of [
+    [caesar, 'encrypt'], [caesar, 'decrypt'],
+    [vigenere, 'encrypt'], [vigenere, 'decrypt'],
+    [playfair, 'encrypt'], [playfair, 'decrypt'],
+    [railfence, 'encrypt'], [railfence, 'decrypt'],
+    [hill, 'encrypt'], [hill, 'decrypt'],
+    [aes, 'encrypt'],
+    [rsa, 'encrypt'], [rsa, 'decrypt'],
+  ]) {
+    assert.throws(() => m[action](emptyValues(m)), { message: 'Enter a message' }, `${m.id}.${action} direct empty throw`);
+  }
+  assert.doesNotThrow(() => sha256.hash({ text: '' }));
+  assert.doesNotThrow(() => base64.encode({ text: '' }));
+  assert.doesNotThrow(() => base64.decode({ text: '' }));
 });
 
 test('RSA suggestPrimes is bounded, stays within the input limit, and is fast for huge ciphertext', () => {
@@ -370,4 +401,22 @@ test('AES avalanche on short text flips a student letter, not a padding byte', (
   // Full 16-byte block still flips the last byte (FIPS-197 App. B: 64 bits change).
   const full = aes.encrypt({ format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key });
   assert.match(full.steps.find((s) => s.title === 'Avalanche effect').explanation, /byte 16: 34 → 35/);
+});
+
+test('RSA large primes encrypt/decrypt stay fast and still teach factoring tries', () => {
+  const p = 9999991, q = 9999973, e = 17;
+  const t0 = Date.now();
+  const enc = rsa.encrypt({ p, q, e, format: 'text', message: 'HI' });
+  const encMs = Date.now() - t0;
+  const t1 = Date.now();
+  const dec = rsa.decrypt({ p, q, e, format: 'text', message: enc.output });
+  const decMs = Date.now() - t1;
+  assert.equal(dec.output, 'HI');
+  assert.ok(encMs < 200, `encrypt should be well under 200ms, was ${encMs}ms`);
+  assert.ok(decMs < 200, `decrypt should be well under 200ms, was ${decMs}ms`);
+  // Teaching count is preserved: trial divisions from 2 through the smaller prime (inclusive).
+  const factorRow = enc.steps.find((s) => /textbook RSA is unsafe/.test(s.title)).visual.data.rows[3][1];
+  const smaller = Math.min(p, q);
+  assert.match(factorRow, new RegExp(`found by trial division in ${smaller - 1} tries`));
+  assert.match(factorRow, new RegExp(`${smaller}`));
 });

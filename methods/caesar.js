@@ -24,6 +24,7 @@ export function chiSquared(text) {
 }
 
 function run(text, shift, decrypting) {
+  if (!String(text ?? '').length) throw new Error('Enter a message');
   const k = mod(Number(shift), 26);
   const eff = decrypting ? mod(-k, 26) : k;
   const chars = [...text];
