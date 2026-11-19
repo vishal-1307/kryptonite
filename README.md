@@ -1,8 +1,10 @@
-# Crypto Visualizer
+# Kryptonite
+
+**Kryptonite — see cryptography step by step.** Built by **Team Kryptonite**.
 
 A classroom tool that shows **how cryptographic algorithms work, step by step**. Pick a method, type your own message and key, and play through every step with an animation and a plain-English explanation. It replaces jumping between many separate websites during a lecture.
 
-**Live demo:** https://crypto-visualizer-pi.vercel.app
+**Live demo:** LIVE_URL
 
 | Classical | Modern | Other |
 |---|---|---|
@@ -21,8 +23,8 @@ Features
 It is a static site. Any web server works (ES modules do not load from `file://`).
 
 ```bash
-git clone https://github.com/vishal-1307/crypto-visualizer.git
-cd crypto-visualizer
+git clone https://github.com/vishal-1307/kryptonite.git
+cd kryptonite
 python3 -m http.server 8080        # or: npx serve .
 # open http://localhost:8080
 ```
@@ -171,6 +173,10 @@ A new visual is also one file: create `visuals/<name>.js` exporting `{ type, ren
 - Every method round-trips and returns well-formed steps.
 
 > Educational use: AES here encrypts a single block (no mode of operation) and RSA uses tiny primes without padding, so every step is visible. Use real libraries (Web Crypto, OpenSSL, libsodium) for actual security.
+
+## Team
+
+Kryptonite is built and maintained by **Team Kryptonite**.
 
 ## License
 

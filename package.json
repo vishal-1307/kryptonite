@@ -1,12 +1,13 @@
 {
-  "name": "crypto-visualizer",
+  "name": "kryptonite",
   "version": "1.0.0",
-  "description": "Classroom cryptography visualizer: step-by-step, animated, plugin-based. Pure static HTML/CSS/JS.",
+  "description": "Kryptonite by Team Kryptonite: classroom cryptography visualizer: step-by-step, animated, plugin-based. Pure static HTML/CSS/JS.",
   "type": "module",
   "private": true,
   "scripts": {
     "test": "node --test",
     "start": "python3 -m http.server 8080"
   },
+  "author": "Team Kryptonite",
   "license": "MIT"
 }

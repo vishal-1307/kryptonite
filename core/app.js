@@ -36,7 +36,7 @@ applyPrefs();
 const main = $('#main');
 
 function renderHome() {
-  document.title = 'Crypto Visualizer';
+  document.title = 'Kryptonite — see cryptography step by step';
   const all = grouped().flatMap(([, list]) => list);
   const cats = ['All', ...grouped().map(([c]) => c)];
   const cards = h('div', { class: 'cards' }, all.map((m) => h('a', { class: `card method-card cat-${catSlug(m.category)}`, href: `#/${m.id}`, 'data-cat': m.category },
@@ -52,7 +52,7 @@ function renderHome() {
   main.className = 'view-home';
   main.replaceChildren(
     h('section', { class: 'hero' },
-      h('p', { class: 'eyebrow' }, 'Classroom tool'),
+      h('p', { class: 'eyebrow' }, 'Kryptonite · by Team Kryptonite'),
       h('h1', {}, 'See cryptography happen, step by step.'),
       h('p', { class: 'lead' }, `${methods.length} methods in one place. Pick one, type your own message and key, and watch every step with an explanation.`),
       h('ol', { class: 'how' }, ['Pick a method', 'Enter text & key', 'Play the steps'].map((t, i) => h('li', {}, h('span', {}, i + 1), t)))),
@@ -82,7 +82,7 @@ const ICONS = {
 
 let player = null;
 function renderMethod(method, actionId) {
-  document.title = `${method.name} · Crypto Visualizer`;
+  document.title = `${method.name} · Kryptonite`;
   main.className = 'view-method';
   const actions = getActions(method);
   let action = actions.find((a) => a.id === actionId) || actions[0];

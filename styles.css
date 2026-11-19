@@ -1,8 +1,8 @@
 /* ---------- Theme tokens ---------- */
 :root {
   --bg: #f7f7f5; --card: #ffffff; --border: #e8e7e3; --text: #18181b; --muted: #6b6b70;
-  --accent: #4f46e5; --accent-soft: #eef0ff; --accent-text: #3730a3;
-  --ok: #059669; --ok-soft: #e7f8f1; --key: #b45309; --key-soft: #fff4e0;
+  --accent: #0d9488; --accent-soft: #e6f6f4; --accent-text: #0f766e;
+  --ok: #4f46e5; --ok-soft: #eef0ff; --key: #b45309; --key-soft: #fff4e0;
   --danger: #dc2626; --cell: #f4f4f2; --shadow: 0 1px 2px rgba(16,16,20,.04), 0 4px 16px rgba(16,16,20,.04);
   --radius: 14px; --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -11,8 +11,8 @@
 }
 .dark {
   --bg: #0e1014; --card: #161920; --border: #262a33; --text: #e9e9ec; --muted: #9a9ca5;
-  --accent: #8b8cf8; --accent-soft: #23254a; --accent-text: #c7c8ff;
-  --ok: #34d399; --ok-soft: #12322a; --key: #fbbf24; --key-soft: #3a2d10;
+  --accent: #2dd4bf; --accent-soft: #12302d; --accent-text: #99f6e4;
+  --ok: #6366f1; --ok-soft: #23254a; --ok-text: #a5b4fc; --key: #fbbf24; --key-soft: #3a2d10;
   --cell: #1e222b; --shadow: none; color-scheme: dark;
 }
 .large { font-size: 20px; }
@@ -194,7 +194,7 @@ main { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: clamp(1
 .tr-col { display: flex; flex-direction: column; gap: .25rem; }
 .tr-col .cell { min-width: 1.9em; }
 .tr-col .cell.is-space { color: var(--muted); font-weight: 400; }
-.tr-col .cell-out:not(.is-empty) { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.tr-col .cell-out:not(.is-empty) { background: var(--ok-soft); color: var(--ok-text, var(--ok)); border-color: transparent; }
 .tr-col.is-active .cell { background: var(--accent); color: #fff; border-color: var(--accent); }
 .dark .tr-col.is-active .cell { color: #0e1014; }
 .tr-col.is-active .cell-out { background: var(--ok); }
