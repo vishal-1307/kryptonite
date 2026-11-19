@@ -103,7 +103,7 @@ const ALL = [...Array(16).keys()];
 const g = (label, bytes, hl = [], tone) => ({ label, bytes, hl, tone });
 
 const EXPLAIN = {
-  SubBytes: 'Every byte is replaced using the S-box, a fixed 256-entry lookup table built from inverses in GF(2⁸). This is the only non-linear step and gives AES its "confusion".',
+  SubBytes: 'Every byte is replaced using the S-box, a fixed 256-entry lookup table: each byte is replaced by its multiplicative inverse in GF(2⁸), then put through a fixed affine transform (bit mixing, XOR 0x63). This is the only non-linear step and gives AES its "confusion".',
   InvSubBytes: 'Every byte is replaced using the inverse S-box, undoing SubBytes.',
   ShiftRows: 'Row 0 stays put, row 1 rotates left by 1, row 2 by 2 and row 3 by 3. This spreads each column\'s bytes across all four columns.',
   InvShiftRows: 'Rotate row 1 right by 1, row 2 by 2 and row 3 by 3, undoing ShiftRows.',
@@ -138,58 +138,108 @@ function opStep(e, decrypting) {
   return { title: `${roundLabel} · ${e.op}`, explanation: EXPLAIN[e.op] + extra, visual };
 }
 
-function parseBlock(value, format, what) {
-  if (format === 'text') {
+const KDF_NOTE = 'Real systems never use a typed password directly as an AES key; they derive the 16 bytes with a key-derivation function such as PBKDF2, scrypt or Argon2.';
+
+/** Parse the 128-bit key. Hex: exactly 32 hex characters. Text: exactly 16 bytes (UTF-8). No silent padding. */
+export function parseKey(value, keyFormat = 'hex') {
+  if (keyFormat === 'text') {
     const bytes = utf8Encode(value);
-    if (bytes.length > 16) throw new Error(`${what} is ${bytes.length} bytes; this single-block demo allows at most 16 bytes (16 plain English characters).`);
-    return bytes.concat(new Array(16 - bytes.length).fill(0));
+    if (bytes.length !== 16) throw new Error(`A text key must be exactly 16 bytes (16 plain English characters); this one is ${bytes.length} byte${bytes.length === 1 ? '' : 's'}. ${KDF_NOTE}`);
+    return bytes;
   }
-  const bytes = hexToBytes(value);
-  if (bytes.length !== 16) throw new Error(`${what} must be exactly 32 hex characters (16 bytes); got ${bytes.length} bytes.`);
-  return bytes;
+  const clean = String(value).replace(/\s+/g, '');
+  if (!/^[0-9a-fA-F]*$/.test(clean)) throw new Error('A hex key may only contain 0–9 and a–f. If you typed a word, switch "Key format" to Text.');
+  if (clean.length !== 32) throw new Error(`A hex key must be exactly 32 hex characters (16 bytes); this one has ${clean.length}.`);
+  return hexToBytes(clean);
 }
 
-function run({ block, key, format }, decrypting) {
-  const k = parseBlock(key, format, 'The key');
-  const input = decrypting ? parseBlock(block, 'hex', 'The ciphertext') : parseBlock(block, format, 'The plaintext');
+/** Parse the plaintext (encrypt) or ciphertext (decrypt) block. Returns { bytes, padded }. */
+export function parseBlock(value, format, what) {
+  if (format === 'text') {
+    const bytes = utf8Encode(value);
+    if (!bytes.length) throw new Error(`${what} is empty.`);
+    if (bytes.length > 16) throw new Error(`${what} is ${bytes.length} bytes; this single-block demo allows at most 16 bytes (16 plain English characters).`);
+    return { bytes: bytes.concat(new Array(16 - bytes.length).fill(0)), padded: 16 - bytes.length };
+  }
+  const clean = String(value).replace(/\s+/g, '');
+  if (!/^[0-9a-fA-F]*$/.test(clean)) throw new Error(`${what} must be hex (0–9, a–f).${what === 'The plaintext' ? ' To type words, switch "Plaintext format" to Text.' : ''}`);
+  if (clean.length !== 32) throw new Error(`${what} must be exactly 32 hex characters (16 bytes); it has ${clean.length}.`);
+  return { bytes: hexToBytes(clean), padded: 0 };
+}
+
+const bitsDiffer = (x, y) => x.reduce((n, b, i) => { let v = b ^ y[i]; while (v) { n += v & 1; v >>= 1; } return n; }, 0);
+
+function run({ block, key, format, keyFormat = 'hex' }, decrypting) {
+  const k = parseKey(key, keyFormat);
+  const { bytes: input, padded } = decrypting ? parseBlock(block, 'hex', 'The ciphertext') : parseBlock(block, format, 'The plaintext');
   const { output, log, roundKeys } = decrypting ? aesDecryptBlock(input, k) : aesEncryptBlock(input, k);
   const { w, trace } = expandKey(k);
   const t4 = trace[4];
   const hexWord = (b) => b.map(toHex).join(' ');
   const steps = [{
     title: decrypting ? 'Load the ciphertext into the state' : 'Load the plaintext into the state',
-    explanation: `AES works on a 4×4 grid of bytes called the state, filled column by column.${format === 'text' && !decrypting ? ' Your text was converted to UTF-8 bytes and padded with 00 to 16 bytes.' : ''}`,
+    explanation: `AES works on a 4×4 grid of bytes called the state, filled column by column. The key is always exactly 16 bytes (128 bits).${keyFormat === 'text' ? ` Your text key was converted to its 16 UTF-8 bytes. ${KDF_NOTE}` : ''}`,
     visual: { type: 'byteGrid', data: { items: [g(decrypting ? 'Ciphertext' : 'Plaintext', input, ALL), { op: ' ' }, g('Key', k, [], 'key')] } },
-  }, {
+  }];
+  if (padded) {
+    steps.push({
+      title: `Padding: ${padded} zero byte${padded === 1 ? '' : 's'} added`,
+      explanation: `⚠ Your text is ${16 - padded} bytes but AES needs a full 16-byte block, so this demo appends ${padded} bytes of 00. Zero padding is ambiguous (a real trailing 00 byte cannot be told apart from padding). Real systems use PKCS#7 padding, or a mode such as GCM/CTR that needs no padding.`,
+      visual: { type: 'byteGrid', data: { items: [g('Plaintext + padding', input, Array.from({ length: padded }, (_, i) => 16 - padded + i))] } },
+    });
+  }
+  steps.push({
     title: 'Key expansion: making word w4',
-    explanation: 'The 16-byte key is expanded into 44 four-byte words (11 round keys). Every 4th word is made by rotating the previous word, passing it through the S-box and XOR-ing a round constant (Rcon); then it is XOR-ed with the word 4 positions back.',
+    explanation: 'The 16-byte key is expanded into 44 four-byte words (11 round keys). Each word is w[i] = w[i−1] ⊕ w[i−4]. For every 4th word (i divisible by 4), w[i−1] is first rotated (RotWord), passed through the S-box (SubWord) and XOR-ed with a round constant (Rcon).',
     visual: { type: 'math', data: { lines: [
       { expr: `w3 = ${hexWord(t4.prev)}`, note: 'previous word' },
       { expr: `RotWord → ${hexWord(t4.rot)}`, note: 'rotate left 1 byte' },
       { expr: `SubWord → ${hexWord(t4.sub)}`, note: 'S-box each byte' },
       { expr: `⊕ Rcon(${toHex(t4.rcon)} 00 00 00) → ${hexWord(t4.afterRcon)}`, note: 'round constant' },
       { expr: `⊕ w0 (${hexWord(t4.back)}) = ${hexWord(w[4])}`, note: 'w4', highlight: true },
+      { expr: `w5 = w4 ⊕ w1 = ${hexWord(w[5])}`, note: 'ordinary word: just XOR' },
     ] } },
   }, {
     title: 'Key expansion: all 11 round keys',
     explanation: 'Repeating that process gives one 128-bit round key for the initial step and each of the 10 rounds.',
     visual: { type: 'table', data: { mono: true, headers: ['Round', 'Round key (w₀ w₁ w₂ w₃)'], rows: roundKeys.map((rk, r) => [r, bytesToHex(rk).match(/.{8}/g).join(' ')]), highlightRows: decrypting ? [10] : [0] } },
-  }];
+  });
   log.forEach((e) => steps.push(opStep(e, decrypting)));
   let outputText = bytesToHex(output);
   let outputLabel = decrypting ? 'Plaintext (hex)' : 'Ciphertext (hex)';
+  let stripped = 0;
   if (decrypting && format === 'text') {
     let end = 16; while (end > 0 && output[end - 1] === 0) end--;
+    stripped = 16 - end;
     outputText = utf8Decode(output.slice(0, end));
     outputLabel = `Plaintext (hex ${bytesToHex(output)})`;
   }
   steps.push({
     title: decrypting ? 'Plaintext recovered' : 'Ciphertext',
     explanation: decrypting
-      ? 'Running the inverse steps in reverse order with the same round keys gives back the original block.'
-      : 'After 10 rounds the state is the ciphertext. Change a single bit of the plaintext or key and about half of these output bits change (the avalanche effect). Note: real systems use a mode of operation such as GCM to encrypt more than one block.',
+      ? `Running the inverse steps in reverse order with the same round keys gives back the original block.${stripped ? ` ${stripped} trailing 00 byte(s) were removed as demo padding; with zero padding a genuine trailing 00 would also be lost, which is why real systems use PKCS#7.` : ''}`
+      : 'After 10 rounds the state is the ciphertext.',
     visual: { type: 'byteGrid', data: { items: [g(decrypting ? 'Plaintext' : 'Ciphertext', output, ALL, 'out')] } },
   });
+  if (!decrypting) {
+    const flipped = input.slice(); flipped[15] ^= 1;
+    const alt = aesEncryptBlock(flipped, k).output;
+    steps.push({
+      title: 'Avalanche effect',
+      explanation: `Flip just one bit of the plaintext (last byte ${toHex(input[15])} → ${toHex(flipped[15])}) and encrypt again: ${bitsDiffer(output, alt)} of the 128 ciphertext bits change, about half. Highlighted characters differ.`,
+      visual: [{ type: 'digest', data: { label: 'Ciphertext', hex: bytesToHex(output) } }, { type: 'digest', data: { label: '1 plaintext bit changed', hex: bytesToHex(alt), compare: bytesToHex(output) } }],
+    });
+    steps.push({
+      title: 'One block is not enough: modes of operation',
+      explanation: 'This demo encrypts a single block directly; that is ECB mode. In ECB, identical plaintext blocks always give identical ciphertext blocks, so patterns leak (the famous "ECB penguin" image). Real systems use a mode: CBC chains blocks with a random IV, CTR turns AES into a stream cipher with a nonce, and GCM (CTR + authentication tag) also detects tampering. Never reuse a nonce with the same key.',
+      visual: { type: 'table', data: { headers: ['Mode', 'Needs', 'Hides patterns', 'Detects tampering'], rows: [
+        ['ECB', '—', '✗ identical blocks → identical output', '✗'],
+        ['CBC', 'random IV + padding', '✓', '✗ (add a MAC)'],
+        ['CTR', 'unique nonce', '✓', '✗ (add a MAC)'],
+        ['GCM', 'unique nonce', '✓', '✓ authentication tag'],
+      ], highlightRows: [3] } },
+    });
+  }
   return { output: outputText, outputLabel, steps };
 }
 
@@ -200,15 +250,24 @@ export default {
   description: 'The modern standard block cipher: 10 rounds of SubBytes, ShiftRows, MixColumns and AddRoundKey on a 4×4 byte state.',
   ioField: 'block',
   examples: [
-    { label: 'FIPS-197 Appendix B', values: { format: 'hex', block: '3243f6a8885a308d313198a2e0370734', key: '2b7e151628aed2a6abf7158809cf4f3c' } },
-    { label: 'FIPS-197 Appendix C.1', values: { format: 'hex', block: '00112233445566778899aabbccddeeff', key: '000102030405060708090a0b0c0d0e0f' } },
-    { label: 'Text example', values: { format: 'text', block: 'Two One Nine Two', key: 'Thats my Kung Fu' } },
+    { label: 'FIPS-197 Appendix B', values: { format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' } },
+    { label: 'FIPS-197 Appendix C.1', values: { format: 'hex', block: '00112233445566778899aabbccddeeff', keyFormat: 'hex', key: '000102030405060708090a0b0c0d0e0f' } },
+    { label: 'Text example', values: { format: 'text', block: 'Two One Nine Two', keyFormat: 'text', key: 'Thats my Kung Fu' } },
   ],
   inputs: [
-    { id: 'format', label: 'Input format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (32 hex characters)' }, { value: 'text', label: 'Text (up to 16 characters)' }], help: 'Ciphertext for decryption is always hex' },
-    { id: 'block', label: 'Plaintext / ciphertext block', type: 'textarea', default: '3243f6a8885a308d313198a2e0370734', help: 'Default values are the FIPS-197 Appendix B test vector' },
-    { id: 'key', label: 'Key (128-bit)', type: 'text', default: '2b7e151628aed2a6abf7158809cf4f3c' },
+    { id: 'format', label: 'Plaintext format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (32 hex characters)' }, { value: 'text', label: 'Text (up to 16 characters)' }], help: 'Ciphertext is always hex' },
+    { id: 'block', label: 'Plaintext / ciphertext block', type: 'textarea', default: '3243f6a8885a308d313198a2e0370734', help: 'Defaults are the FIPS-197 Appendix B test vector' },
+    { id: 'keyFormat', label: 'Key format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (exactly 32 hex characters)' }, { value: 'text', label: 'Text (exactly 16 characters)' }] },
+    { id: 'key', label: 'Key (128-bit)', type: 'text', default: '2b7e151628aed2a6abf7158809cf4f3c',
+      validate: (v, values) => { try { parseKey(v, values.keyFormat); return null; } catch (e) { return e.message; } } },
   ],
+  validate: (values, action) => {
+    try {
+      if (action === 'decrypt') parseBlock(values.block, 'hex', 'The ciphertext');
+      else parseBlock(values.block, values.format, 'The plaintext');
+      return null;
+    } catch (e) { return e.message; }
+  },
   encrypt: (v) => run(v, false),
   decrypt: (v) => run(v, true),
 };
