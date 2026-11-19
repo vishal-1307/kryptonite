@@ -1,0 +1,12 @@
+{
+  "name": "crypto-visualizer",
+  "version": "1.0.0",
+  "description": "Classroom cryptography visualizer: step-by-step, animated, plugin-based. Pure static HTML/CSS/JS.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "MIT"
+}
