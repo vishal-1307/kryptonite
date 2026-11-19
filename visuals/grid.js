@@ -71,7 +71,7 @@ function drawOverlay(el, d, animated) {
   arrows.forEach((a, i) => animate(a, draw, { duration: 400, delay: tArrow + i * 100, easing: EASE.inOut }));
   d.primary.forEach(([r, c]) => pop(node(r, c)));
   // A cell can be both an input and an output (e.g. DE → OD in one column): never hide an input letter, just pop it.
-  d.secondary.forEach(([r, c], i) => (has(d.primary, r, c) ? pop(node(r, c), { delay: tOut + i * 100 }) : animate(node(r, c), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.12)', offset: 0.7 }, { opacity: 1, transform: 'none' }],
+  d.secondary.forEach(([r, c], i) => (has(d.primary, r, c) ? pop(node(r, c), { delay: tOut + i * 100 }) : animate(node(r, c), [{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)', transform: 'none' }, { transform: 'scale(1.12)', offset: 0.7 }, { transform: 'none' }],
     { duration: DUR.base, delay: tOut + i * 100 })));
   animate(el.querySelector('figcaption'), [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: DUR.base, delay: tShape });
 }
