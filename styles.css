@@ -367,6 +367,12 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
 .bits-item.is-hl { background: var(--ok-soft); border-color: var(--ok); }
 .bits-item.is-hl code { color: var(--ok); font-size: 1.15rem; }
 .bits-arrow { color: var(--muted); }
+.bit-pad { display: inline-block; color: var(--key); background: var(--key-soft); border: 1px dashed var(--key); border-radius: 3px; padding: 0 .08em; margin: 0 .02em; }
+.bits-item.is-pad { background: var(--key-soft); border: 2px dashed var(--key); }
+.bits-item.is-pad code { color: var(--key); font-size: 1.15rem; }
+.pad-note { margin: .4rem 0 0; font-size: .82rem; color: var(--key); font-weight: 600; }
+.pad-note code { font-weight: 700; letter-spacing: .1em; }
+.dark .bit-pad, .dark .bits-item.is-pad code, .dark .pad-note { color: #fcd34d; }
 
 /* flow */
 .v-flow { display: grid; gap: .8rem; width: 100%; }
