@@ -2,7 +2,8 @@
 
 **Project name:** Kryptonite — see cryptography step by step  
 **Team:** Team Kryptonite  
-**Repository:** https://github.com/vishal-1307/kryptonite
+**Repository:** https://github.com/vishal-1307/kryptonite  
+**Live:** https://team-kryptonite.vercel.app
 
 ## 1. Problem statement
 When cryptography is taught in class, each algorithm (Caesar, Vigenère, Playfair, AES, RSA, SHA-256 …) is usually demonstrated with a different website or tool. Switching between tools wastes lecture time, the tools look and behave differently, and most only show the final ciphertext, not *how* it was produced. Students therefore memorise formulas without seeing the internal steps.
