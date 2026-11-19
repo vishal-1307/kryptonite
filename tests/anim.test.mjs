@@ -26,17 +26,15 @@ test('reduce-motion toggle: manual preference combines with the OS setting', () 
   assert.equal(anim.reduced(), false);
 });
 
-test('reduced motion: animations are skipped; only a visual\'s entrance keeps one ≤120 ms fade', () => {
+test('reduced motion: every animation is skipped, including a visual\'s entrance', () => {
   anim.setMotionPreference('reduce');
   const el = fakeEl();
   assert.equal(anim.animate(el, [{ transform: 'translateX(40px)' }, { transform: 'none' }], { duration: 800, delay: 300 }), null, 'default: skipped, shown instantly');
   assert.equal(anim.animate(el, [{ opacity: 0 }, { opacity: 1 }], { reduce: 'none' }), null);
+  assert.equal(anim.animate(el, [{ opacity: 0 }, { opacity: 1 }], { reduce: 'fade' }), null, 'even reduce: fade is instant');
   assert.equal(anim.stagger([el, el, el], [{ opacity: 0 }, { opacity: 1 }], { each: 200 }).filter(Boolean).length, 0, 'nested reveals never stack');
-  assert.equal(el.calls.length, 0);
-  anim.enter(el);
-  assert.equal(el.calls.length, 1, 'enter() still fades the whole visual');
-  assert.deepEqual(el.calls[0].keyframes, [{ opacity: 0 }, { opacity: 1 }]);
-  assert.ok(el.calls[0].opts.duration <= 120 && !el.calls[0].opts.delay, 'at most 120 ms, no delay');
+  assert.equal(anim.enter(el), null, 'enter() is instant too, so a step is final on the first frame');
+  assert.equal(el.calls.length, 0, 'no WAAPI calls under reduced motion');
   anim.settle();
   anim.setMotionPreference('auto');
   const el2 = fakeEl();
