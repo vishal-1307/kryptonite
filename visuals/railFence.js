@@ -41,7 +41,7 @@ function sync(el, d, animateChange) {
   st.drawn = n;
   if (animateChange) {
     stagger(dropped, [{ opacity: 0, transform: 'translateY(-1.6em) scale(.8)' }, { opacity: 1, transform: 'translateY(.12em)', offset: 0.75 }, { opacity: 1, transform: 'none' }],
-      { duration: DUR.slow, each: 110, maxTotal: 900, easing: EASE.out });
+      { duration: 450, each: 110, maxTotal: 600, easing: EASE.out });
     stagger(lit, [{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: 0.5 }, { transform: 'scale(1)' }],
       { duration: DUR.base, each: 70, maxTotal: 800, reduce: 'none' });
   }

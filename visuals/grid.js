@@ -65,13 +65,14 @@ function drawOverlay(el, d, animated) {
   st.over.append(...arrows);
   if (!animated) return;
   // Sequence (all delays; settle() jumps straight to the end state).
-  const tShape = 220, tArrow = tShape + DUR.base, tOut = tArrow + DUR.slow;
+  const tShape = 150, tArrow = tShape + 250, tOut = tArrow + 350; // whole sequence ≈1.2 s at 1× (< 1.4 s step)
   const draw = [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }];
-  animate(shape, draw, { duration: DUR.slow, delay: tShape, easing: EASE.inOut });
-  arrows.forEach((a, i) => animate(a, draw, { duration: DUR.slow, delay: tArrow + i * 120, easing: EASE.inOut }));
+  animate(shape, draw, { duration: 400, delay: tShape, easing: EASE.inOut });
+  arrows.forEach((a, i) => animate(a, draw, { duration: 400, delay: tArrow + i * 100, easing: EASE.inOut }));
   d.primary.forEach(([r, c]) => pop(node(r, c)));
-  d.secondary.forEach(([r, c], i) => animate(node(r, c), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.12)', offset: 0.7 }, { opacity: 1, transform: 'none' }],
-    { duration: DUR.base, delay: tOut + i * 120 }));
+  // A cell can be both an input and an output (e.g. DE → OD in one column): never hide an input letter, just pop it.
+  d.secondary.forEach(([r, c], i) => (has(d.primary, r, c) ? pop(node(r, c), { delay: tOut + i * 100 }) : animate(node(r, c), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.12)', offset: 0.7 }, { opacity: 1, transform: 'none' }],
+    { duration: DUR.base, delay: tOut + i * 100 })));
   animate(el.querySelector('figcaption'), [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: DUR.base, delay: tShape });
 }
 

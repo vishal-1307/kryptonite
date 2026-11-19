@@ -92,7 +92,7 @@ function renderMethod(method, actionId) {
   let action = actions.find((a) => a.id === actionId) || actions[0];
 
   // --- input card
-  const formErr = h('div', { class: 'form-error', role: 'alert' });
+  const formErr = h('div', { class: 'form-error' }); // announced via the stage's role=alert panel (avoids double announcements)
   const form = buildForm(method, { onInput: () => scheduleRun() });
   const actionBar = h('div', { class: 'segmented', role: 'tablist' }, actions.map((a) => h('button', {
     type: 'button', role: 'tab', 'data-action': a.id, onclick: () => setAction(a.id, true),
@@ -179,7 +179,7 @@ function renderMethod(method, actionId) {
     nextBtn.disabled = lastBtn.disabled = !n || p.index >= n - 1;
     scrub.max = Math.max(0, n - 1); scrub.value = p.index;
     scrub.setAttribute('aria-valuetext', n ? `Step ${p.index + 1} of ${n}` : 'No steps');
-    progress.firstChild.style.width = n > 1 ? `${(p.index / (n - 1)) * 100}%` : '100%';
+    progress.firstChild.style.width = n > 1 ? `${(p.index / (n - 1)) * 100}%` : n ? '100%' : '0%';
     [...stepList.children].forEach((li, i) => li.classList.toggle('is-current', i === p.index));
     if (step !== shown) {
       const direction = shownList === p.steps ? Math.sign(p.index - shownIndex) : 0; // +1 forward, −1 back, 0 fresh run
@@ -243,10 +243,11 @@ function renderMethod(method, actionId) {
     const { fieldErrors, formError } = validate(method, action.id, values);
     form.showErrors(fieldErrors);
     formErr.textContent = formError || '';
-    if (Object.keys(fieldErrors).length || formError) { showFailed(); return; }
+    if (Object.keys(fieldErrors).length || formError) { showFailed(formError || Object.values(fieldErrors).join(' ')); return; }
     try {
       const res = runAction(method, action.id, values);
       outLabel.textContent = res.outputLabel || (action.label === 'Encrypt' ? 'Ciphertext' : action.label === 'Decrypt' ? 'Plaintext' : 'Result');
+      outValue.classList.remove('is-error');
       outValue.textContent = res.output || '(empty)';
       outValue.dataset.raw = res.output;
       outValue.classList.remove('flash'); void outValue.offsetWidth; outValue.classList.add('flash');
@@ -255,16 +256,26 @@ function renderMethod(method, actionId) {
       lastRun = { action: action.id, output: res.output };
     } catch (e) {
       formErr.textContent = e.message;
-      showFailed();
+      showFailed(e.message);
     }
   }
-  function showFailed() {
+  function showFailed(message) {
+    const msg = message || 'The input is not valid.';
     lastRun = null;
     outLabel.textContent = 'Fix the input to see a result';
-    outValue.textContent = '—';
+    outValue.textContent = msg;
+    outValue.classList.add('is-error');
     delete outValue.dataset.raw;
     stepList.replaceChildren();
     player.load([]);
+    // Same message in the stage, as an accessible alert (screen readers announce it once).
+    stepTitle.textContent = 'Can’t run yet';
+    const panel = h('div', { class: 'stage-error', role: 'alert' },
+      h('span', { class: 'stage-error-icon', 'aria-hidden': 'true' }, '!'),
+      h('div', {}, h('strong', {}, 'Input problem'), h('p', {}, msg)));
+    stage.replaceChildren(panel);
+    nodes = [];
+    anim.enter(panel);
   }
 
   setAction(action.id, false);

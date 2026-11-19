@@ -60,7 +60,7 @@ function apply(el, d, animateTravel) {
 
   if (!animateTravel || !delta) return;
   const n = Math.abs(delta);
-  const duration = Math.min(1100, 320 + 55 * n);
+  const duration = Math.min(950, 300 + 50 * n); // fits inside a 1× autoplay step (1.4 s)
   const opts = { duration, easing: EASE.inOut, reduce: 'none' };
   animate(token, [{ transform: `rotate(${a0}deg)` }, { transform: `rotate(${a1}deg)` }], opts);
   animate(token.querySelector('.travel-upright'), [{ transform: `rotate(${-a0}deg)` }, { transform: `rotate(${-a1}deg)` }], opts);
