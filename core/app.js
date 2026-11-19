@@ -34,6 +34,21 @@ $('#theme-toggle').addEventListener('click', () => { prefs.set('theme', document
 function togglePresentation() { prefs.set('large', prefs.get('large', '0') === '1' ? '0' : '1'); applyPrefs(); }
 $('#large-toggle').addEventListener('click', togglePresentation);
 $('#large-toggle').title = 'Presentation mode: big text, high contrast (P)';
+
+// Reduce-motion toggle (stored in localStorage; combined with the OS prefers-reduced-motion setting).
+const motionBtn = h('button', { id: 'motion-toggle', class: 'icon-btn', type: 'button', title: 'Reduce motion (M)', 'aria-label': 'Reduce motion', 'aria-pressed': 'false',
+  html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span class="icon-label">Motion</span>' });
+$('.top-actions').prepend(motionBtn);
+function applyMotion() {
+  const on = prefs.get('motion', 'auto') === 'reduce';
+  anim.setMotionPreference(on ? 'reduce' : 'auto');
+  document.documentElement.classList.toggle('reduce-motion', on);
+  motionBtn.setAttribute('aria-pressed', on);
+  motionBtn.querySelector('.icon-label').textContent = on ? 'Motion off' : 'Motion';
+}
+function toggleMotion() { prefs.set('motion', prefs.get('motion', 'auto') === 'reduce' ? 'auto' : 'reduce'); applyMotion(); }
+motionBtn.addEventListener('click', toggleMotion);
+applyMotion();
 applyPrefs();
 
 // ------------------------------------------------------------ views
@@ -129,7 +144,7 @@ function renderMethod(method, actionId) {
   const kbd = (k) => h('kbd', {}, k);
   const legend = h('p', { class: 'kbd-legend' },
     h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play / pause'),
-    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' presentation mode'));
+    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' presentation mode'), h('span', {}, kbd('M'), ' reduce motion'));
   const stepList = h('ol', { class: 'step-list' });
   const progress = h('div', { class: 'progress' }, h('span'));
 
@@ -302,7 +317,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ' ' && e.target.closest('button, a, summary')) return;
   // PageDown/PageUp are what most presentation clickers send.
   const map = { ArrowRight: () => player.next(), ArrowLeft: () => player.prev(), PageDown: () => player.next(), PageUp: () => player.prev(),
-    ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last(), p: togglePresentation, P: togglePresentation };
+    ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last(), p: togglePresentation, P: togglePresentation, m: toggleMotion, M: toggleMotion };
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (map[e.key]) { map[e.key](); e.preventDefault(); }
 });

@@ -441,3 +441,6 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
   :root { --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-travel: 1ms; }
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
 }
+/* Manual toggle (top bar / M key) — same effect as the OS setting. */
+:root.reduce-motion { --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-travel: 1ms; }
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }

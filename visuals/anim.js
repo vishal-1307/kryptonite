@@ -11,8 +11,13 @@ const running = new Set();
 let speed = 1;
 const mq = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
-/** True when the user asked the OS for reduced motion. */
-export const reduced = () => !!(mq && mq.matches);
+let userPref = 'auto'; // 'auto' (follow the OS) | 'reduce' (manual toggle in the top bar)
+
+/** Manual preference from the in-app toggle. Combined with the OS setting: either one can turn motion down. */
+export function setMotionPreference(p) { userPref = p === 'reduce' ? 'reduce' : 'auto'; if (userPref === 'reduce') settle(); }
+export const motionPreference = () => userPref;
+/** True when the OS asks for reduced motion OR the user switched it on in the app. */
+export const reduced = () => userPref === 'reduce' || !!(mq && mq.matches);
 
 /** Playback speed multiplier (the player's 0.5×…4×) — faster playback means shorter animations. */
 export function setSpeed(x) { speed = x > 0 ? x : 1; }
