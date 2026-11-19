@@ -21,7 +21,7 @@ export default {
         d.bytes.length % 64 === 0 && d.bytes.length ? h('span', { class: 'hd-key hd-blocks' }, `${blocks} × 512-bit block${blocks > 1 ? 's' : ''}`) : null),
       h('div', { class: 'hd-body mono' }, rows));
     // Bytes flow in row by row (message first, then padding), then the 0x80 and length bytes pulse.
-    stagger(el.querySelectorAll('.hd-row'), [{ opacity: 0, transform: 'translateX(-10px)' }, { opacity: 1, transform: 'none' }], { duration: 260, each: 70, maxTotal: 700 });
+    stagger(el.querySelectorAll('.hd-row'), [{ opacity: 0.3, transform: 'translateX(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, each: 70, maxTotal: 700 });
     el.querySelectorAll('.t-one.hd-b, .t-len.hd-b').forEach((b, k) => pop(b, { delay: 750 + k * 30, fill: 'none' }));
     return el;
   },

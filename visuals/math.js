@@ -16,8 +16,9 @@ export default {
       }));
       return h('div', { class: `m-line${l.highlight ? ' is-hl' : ''}` }, code, l.note ? h('span', { class: 'm-note' }, l.note) : null);
     });
-    stagger(lines, [{ opacity: 0, transform: 'translateX(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, each: 140, maxTotal: 500 });
-    stagger(terms, [{ opacity: 0 }, { opacity: 1 }], { duration: 220, each: 110, maxTotal: 900, delay: 80 });
+    // Terms start readable (dimmed) and brighten in order, so nothing is blank when the step appears.
+    stagger(lines, [{ transform: 'translateX(-4px)' }, { transform: 'none' }], { duration: 220, each: 90, maxTotal: 300 });
+    stagger(terms, [{ opacity: 0.55 }, { opacity: 1 }], { duration: 200, each: 90, maxTotal: 450 });
     return h('div', { class: 'v-math' }, lines);
   },
 };

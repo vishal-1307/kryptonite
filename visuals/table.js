@@ -72,7 +72,7 @@ export default {
       // Column pairs (t, Wₜ): 0–15 come from the block; 16–63 are derived.
       const groups = [0, 1, 2, 3].map((g) => [...table.querySelectorAll('tbody tr')].flatMap((tr) => [tr.children[2 * g], tr.children[2 * g + 1]]));
       groups.forEach((cells, g) => cells.forEach((td) => td.classList.add(g === 0 ? 'w-block' : 'w-derived')));
-      groups.forEach((cells, g) => stagger(cells.filter((_, k) => k % 2), [{ opacity: 0, transform: g ? 'translateX(-8px)' : 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
+      groups.forEach((cells, g) => stagger(cells.filter((_, k) => k % 2), [{ opacity: 0.25, transform: g ? 'translateX(-6px)' : 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
         { duration: 220, each: 18, maxTotal: 300, delay: 150 + g * 330 }));
       return h('div', { class: 'v-schedule' },
         h('p', { class: 'sched-legend small' }, h('span', { class: 'lg lg-block' }, 'W₀–W₁₅: the 16 words of the 512-bit block'), h('span', { class: 'lg lg-derived' }, 'W₁₆–W₆₃: derived from earlier words')),

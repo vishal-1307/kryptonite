@@ -62,8 +62,9 @@ export function stagger(list, keyframes, { each = 60, maxTotal = 700, ...opts } 
   return items.map((el, i) => animate(el, keyframes, { ...opts, delay: (opts.delay || 0) + i * gap }));
 }
 
-/** Standard "appear" motion used for new visuals on a step change. */
-export const enter = (el, opts = {}) => animate(el, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: DUR.base, ...opts });
+/** Standard "appear" motion used for new visuals on a step change. Starts already readable (opacity .5, no delay)
+ *  so a step change is visible on the very first frame; the motion only adds polish. */
+export const enter = (el, opts = {}) => animate(el, [{ opacity: 0.5, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 200, ...opts, delay: 0 });
 
 /** Attention pulse for something that just changed (resting state is unchanged). */
 export const pop = (el, opts = {}) => animate(el, [{ transform: 'scale(.82)' }, { transform: 'scale(1.1)', offset: 0.6 }, { transform: 'none' }], { duration: DUR.base, easing: EASE.out, reduce: 'none', ...opts });

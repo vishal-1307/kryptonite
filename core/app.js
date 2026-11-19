@@ -223,7 +223,7 @@ function renderMethod(method, actionId) {
     stage.replaceChildren(...next.map((x) => x.el));
     stage.dataset.count = next.length;
     nodes = next;
-    fresh.forEach((el, i) => anim.enter(el, { delay: i * 70 }));
+    fresh.forEach((el) => anim.enter(el)); // no delay: the new step must be visible immediately
     // Renderers that animate after being attached (they need layout) expose el.afterMount(ctx).
     for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(ctx);
   }

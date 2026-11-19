@@ -50,7 +50,7 @@ export default {
     }));
     const parts = [...el.children];
     const each = 180;
-    stagger(parts, [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, each, maxTotal: 900 });
+    stagger(parts, [{ opacity: 0.35, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 240, each, maxTotal: 900 });
     const gap = parts.length > 1 ? Math.min(each, 900 / (parts.length - 1)) : 0;
     // Zero bits drop in after their group appears; "=" characters stamp in after the last group.
     const groupDelay = (gi) => (gi * 2) * gap; // group gi is child 2*gi (arrows sit between groups)
