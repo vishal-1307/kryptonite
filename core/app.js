@@ -243,6 +243,7 @@ function renderMethod(method, actionId) {
     fresh.forEach((el) => anim.enter(el)); // no delay: the new step must be visible immediately
     // Renderers that animate after being attached (they need layout) expose el.afterMount(ctx).
     for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(ctx);
+    anim.fitStep(); // settle cap: every step finishes animating within ~1.0 s at 1×
   }
 
   let lastRun = null; // { action, output } of the last successful run

@@ -75,5 +75,27 @@ export function settle() {
   running.clear();
 }
 
+/** Longest a step's animations may take at 1× (ms); the player shows a step for 1400 ms, so ≥0.4 s stays settled. */
+export const STEP_CAP = 1000;
+
+/**
+ * Settle cap: called once a step has rendered. If the animations it started would end later than STEP_CAP
+ * (scaled by playback speed), they are all sped up by the same factor, so their order and sync are kept and
+ * the whole step settles within the cap. Returns the factor applied (1 = unchanged).
+ */
+export function fitStep(cap = STEP_CAP) {
+  const list = [...running];
+  if (!list.length) return 1;
+  const end = Math.max(...list.map((a) => {
+    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    return t ? t.endTime - (a.currentTime || 0) : 0;
+  }));
+  const limit = scale(cap);
+  if (!(end > limit)) return 1;
+  const r = end / limit;
+  for (const a of list) a.playbackRate = (a.playbackRate || 1) * r;
+  return r;
+}
+
 /** Number of animations still running (used by tests/screenshots). */
 export const activeCount = () => running.size;

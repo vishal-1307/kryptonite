@@ -65,7 +65,7 @@ function drawOverlay(el, d, animated) {
   st.over.append(...arrows);
   if (!animated) return;
   // Sequence (all delays; settle() jumps straight to the end state).
-  const tShape = 150, tArrow = tShape + 250, tOut = tArrow + 350; // whole sequence ≈1.2 s at 1× (< 1.4 s step)
+  const tShape = 150, tArrow = tShape + 250, tOut = tArrow + 350; // whole sequence ≈1.2 s at 1×; anim.fitStep() compresses it to the 1.0 s settle cap
   const draw = [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }];
   animate(shape, draw, { duration: 400, delay: tShape, easing: EASE.inOut });
   arrows.forEach((a, i) => animate(a, draw, { duration: 400, delay: tArrow + i * 100, easing: EASE.inOut }));

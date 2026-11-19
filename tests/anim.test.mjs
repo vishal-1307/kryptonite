@@ -57,3 +57,29 @@ test('switching reduce-motion on settles animations already running', () => {
   assert.equal(anim.activeCount(), 0);
   anim.setMotionPreference('auto');
 });
+
+// Fake animation with real-looking timing, for the settle cap.
+function timedAnim(delay, duration) {
+  return { playbackRate: 1, currentTime: 0, effect: { getComputedTiming: () => ({ endTime: delay + duration }) }, finished: new Promise(() => {}), finish() {}, cancel() {} };
+}
+function timedEl(delay, duration) { return { animate: () => timedAnim(delay, duration) }; }
+
+test('settle cap: a step longer than 1.0 s is sped up uniformly; shorter steps are untouched', () => {
+  anim.setMotionPreference('auto'); anim.setSpeed(1); anim.settle();
+  assert.equal(anim.STEP_CAP, 1000);
+  const a = anim.animate(timedEl(0, 400), [{}, {}]), b = anim.animate(timedEl(1100, 400), [{}, {}]); // ends at 1500 ms
+  const r = anim.fitStep();
+  assert.equal(r, 1.5);
+  assert.equal(a.playbackRate, 1.5); assert.equal(b.playbackRate, 1.5, 'same factor for all keeps them in sync');
+  anim.settle();
+  const c = anim.animate(timedEl(200, 600), [{}, {}]); // ends at 800 ms
+  assert.equal(anim.fitStep(), 1);
+  assert.equal(c.playbackRate, 1);
+  anim.settle();
+  anim.setSpeed(2); // at 2× the cap is 500 ms
+  const d = anim.animate(timedEl(0, 1000), [{}, {}]);
+  assert.equal(anim.fitStep(), 2);
+  assert.equal(d.playbackRate, 2);
+  anim.settle(); anim.setSpeed(1);
+  assert.equal(anim.fitStep(), 1, 'nothing running → nothing to do');
+});
