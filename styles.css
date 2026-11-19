@@ -323,21 +323,24 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
 .lg-block, .v-table td.w-block { background: var(--accent-soft); color: var(--accent-text); }
 .lg-derived { background: var(--ok-soft); color: var(--ok-text, var(--ok)); }
 .v-rounds { width: 100%; display: flex; flex-direction: column; gap: .8rem; }
-.v-register { display: flex; flex-direction: column; gap: .5rem; padding: .8rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.v-register { container-type: inline-size; --reg-cols: 8; display: flex; flex-direction: column; gap: .5rem; padding: .8rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
 .reg-head { display: flex; flex-wrap: wrap; gap: .2rem .8rem; align-items: baseline; }
 .reg-stack { display: grid; }
 .reg-frame { grid-area: 1 / 1; opacity: 0; display: flex; flex-direction: column; gap: .35rem; }
 .reg-frame.is-live { opacity: 1; }
 .reg-t { font-size: .8rem; font-weight: 600; color: var(--muted); }
-.reg-cells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .3rem; }
+.reg-cells { display: grid; grid-template-columns: repeat(var(--reg-cols), minmax(0, 1fr)); gap: .3rem; }
 .reg-cell { overflow: hidden; display: flex; flex-direction: column; align-items: center; padding: .3rem .2rem; border-radius: 8px; border: 1px solid var(--border); background: var(--cell); min-width: 0; }
-.reg-cell code { font-size: .82rem; font-weight: 600; }
+/* A value is 8 hex digits (≈ 4.9em of mono incl. breathing room); cap the font by the real column width so it never clips. */
+.reg-cell code { font-size: min(.82rem, calc((100cqi / var(--reg-cols) - .75rem) / 4.9)); font-weight: 600; white-space: nowrap; }
 .reg-cell small { font-size: .68rem; color: var(--muted); }
 .reg-name { font-weight: 700; color: var(--accent-text); }
 .reg-cell.is-new { background: var(--ok-soft); border-color: var(--ok); }
 .reg-slide-wrap { display: flex; align-items: center; gap: .6rem; }
 .reg-slider { flex: 1; accent-color: var(--accent); }
-@media (max-width: 760px) { .reg-cells { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Columns follow the strip's own width (works with projector mode's larger text): 8 → 2 rows of 4 → 4 rows of 2. */
+@container (max-width: 38.5rem) { .reg-cells { --reg-cols: 4; } }
+@container (max-width: 17rem) { .reg-cells { --reg-cols: 2; } }
 
 /* math */
 .v-math { display: flex; flex-direction: column; gap: .35rem; min-width: min(100%, 320px); }
