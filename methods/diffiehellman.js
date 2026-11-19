@@ -58,7 +58,7 @@ export default {
     const full = ord === BigInt(p - 1);
     const safeSubgroup = !full && ord * 2n === BigInt(p - 1) && isPrime(ord);
     const smallSubgroup = !full && !safeSubgroup && ord * 4n < BigInt(p - 1);
-    const flow = (alice, pub, bob) => ({ type: 'flow', data: { columns: [col('Alice (private)', alice), col('Public channel (Eve can see)', pub), col('Bob (private)', bob)] } });
+    const flow = (alice, pub, bob) => ({ type: 'flow', data: { columns: [col('👩 Alice', alice), col('🌐 Public channel (Eve can see)', pub), col('👨 Bob', bob)] } });
     const hi = (text) => ({ text, highlight: true });
     const t = (text) => ({ text });
     const steps = [
@@ -77,14 +77,14 @@ export default {
           { expr: `p − 1 = ${p - 1}`, note: 'maximum possible order' },
         ] } } },
       { title: 'Each picks a private secret', explanation: `Alice secretly picks a = ${a} and Bob secretly picks b = ${b}. These never leave their computers.`,
-        visual: flow([hi(`a = ${a} (secret)`)], [t(`p = ${p}`), t(`g = ${g}`)], [hi(`b = ${b} (secret)`)]) },
+        visual: flow([hi(`a = ${a} 🔒`)], [t(`p = ${p}`), t(`g = ${g}`)], [hi(`b = ${b} 🔒`)]) },
       { title: 'Compute public keys', explanation: `Alice computes A = gᵃ mod p and Bob computes B = gᵇ mod p.`,
-        visual: [flow([t(`a = ${a} (secret)`), hi(`A = ${g}^${a} mod ${p} = ${A}`)], [t(`p = ${p}`), t(`g = ${g}`)], [t(`b = ${b} (secret)`), hi(`B = ${g}^${b} mod ${p} = ${B}`)]),
+        visual: [flow([t(`a = ${a} 🔒`), hi(`A = ${g}^${a} mod ${p} = ${A}`)], [t(`p = ${p}`), t(`g = ${g}`)], [t(`b = ${b} 🔒`), hi(`B = ${g}^${b} mod ${p} = ${B}`)]),
           { type: 'math', data: { lines: [{ expr: `A = ${g}^${a} mod ${p} = ${A}`, note: 'Alice', highlight: true }, { expr: `B = ${g}^${b} mod ${p} = ${B}`, note: 'Bob', highlight: true }] } }] },
       { title: 'Swap public keys', explanation: `They send A = ${A} and B = ${B} over the public channel. Eve now knows p, g, A and B, but not a or b.`,
-        visual: flow([t(`a = ${a} (secret)`), t(`A = ${A}`), hi(`received B = ${B}`)], [t(`p = ${p}`), t(`g = ${g}`), hi(`A = ${A} →`), hi(`← B = ${B}`)], [t(`b = ${b} (secret)`), t(`B = ${B}`), hi(`received A = ${A}`)]) },
+        visual: flow([t(`a = ${a} 🔒`), t(`A = ${A}`), hi(`received B = ${B}`)], [t(`p = ${p}`), t(`g = ${g}`), hi(`A = ${A} →`), hi(`← B = ${B}`)], [t(`b = ${b} 🔒`), t(`B = ${B}`), hi(`received A = ${A}`)]) },
       { title: 'Both compute the same secret', explanation: `Alice computes Bᵃ mod p and Bob computes Aᵇ mod p. Both equal g^(ab) mod p, so they get the same number: ${sA}.`,
-        visual: [flow([t(`a = ${a} (secret)`), hi(`s = ${B}^${a} mod ${p} = ${sA}`)], [t(`p = ${p}`), t(`g = ${g}`), t(`A = ${A}`), t(`B = ${B}`)], [t(`b = ${b} (secret)`), hi(`s = ${A}^${b} mod ${p} = ${sB}`)]),
+        visual: [flow([t(`a = ${a} 🔒`), hi(`s = ${B}^${a} mod ${p} = ${sA}`)], [t(`p = ${p}`), t(`g = ${g}`), t(`A = ${A}`), t(`B = ${B}`)], [t(`b = ${b} 🔒`), hi(`s = ${A}^${b} mod ${p} = ${sB}`)]),
           { type: 'math', data: { lines: [{ expr: `Bᵃ = (gᵇ)ᵃ = g^(ab) = (gᵃ)ᵇ = Aᵇ  (mod p)`, note: 'why it works' }, { expr: `shared secret = ${sA}`, note: sA === sB ? 'match ✓' : 'mismatch', highlight: true }] } }] },
       { title: 'Why Eve is stuck', explanation: `To get the secret Eve would need a or b, i.e. solve ${g}^x ≡ ${A} (mod ${p}) — the discrete logarithm problem. With tiny numbers she can guess, but with 2048-bit primes it is infeasible. In practice the shared secret is not used as a key directly: it is passed through a key-derivation function (for example HKDF) to produce keys for a fast cipher such as AES.`,
         visual: flow([t(`secret s = ${sA}`)], [t(`Eve sees: p, g, A = ${A}, B = ${B}`), hi('needs a or b → discrete log ✗')], [t(`secret s = ${sB}`)]) },
@@ -98,9 +98,9 @@ export default {
       title: '⚠ But an active attacker can sit in the middle',
       explanation: `Plain Diffie–Hellman does not prove WHO you are talking to. Mallory intercepts the traffic, picks her own secret m = ${m}, and sends M = g^m mod p = ${M} to both sides. Alice ends up sharing ${sAM} with Mallory and Bob shares ${sBM} with Mallory; Mallory decrypts and re-encrypts everything. Real protocols use authenticated Diffie–Hellman: TLS signs the exchange with the private key that matches the server's certificate, and Signal checks safety numbers.`,
       visual: [
-        flow([t(`a = ${a} (secret)`), t(`sent A = ${A}`), hi(`received M = ${M} (thinks it is Bob's)`), hi(`key with Mallory = ${sAM}`)],
-          [hi(`Mallory (attacker): m = ${m}`), t(`intercepts A = ${A}, B = ${B}`), hi(`sends M = ${M} both ways`), hi(`knows both keys: ${sAM} and ${sBM}`)],
-          [t(`b = ${b} (secret)`), t(`sent B = ${B}`), hi(`received M = ${M} (thinks it is Alice's)`), hi(`key with Mallory = ${sBM}`)]),
+        flow([t(`a = ${a} 🔒`), t(`sent A = ${A}`), hi(`received M = ${M} (thinks it is Bob's)`), hi(`key with Mallory = ${sAM}`)],
+          [hi(`😈 Mallory: m = ${m}`), t(`intercepts A = ${A}, B = ${B}`), hi(`sends M = ${M} both ways`), hi(`knows both keys: ${sAM} and ${sBM}`)],
+          [t(`b = ${b} 🔒`), t(`sent B = ${B}`), hi(`received M = ${M} (thinks it is Alice's)`), hi(`key with Mallory = ${sBM}`)]),
         { type: 'math', data: { lines: [
           { expr: 'Fix: authenticate the public values', note: 'signatures / certificates', highlight: true },
           { expr: 'TLS 1.3, SSH, Signal all use authenticated (EC)DH', note: '' },

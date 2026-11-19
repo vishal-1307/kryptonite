@@ -140,8 +140,7 @@ Motion: ease-out `cubic-bezier(.2,.7,.2,1)` for everything (the old spring curve
 `pop` = scale .9→1 + opacity .6→1; Playfair/Rail Fence letters settle from .88–.92 → 1; Rail Fence drops slide 1.2em with no
 rebound; Caesar wheel ticks flash the dot yellow instead of scaling it 1.35×; Base64 "=" settles 1.2→1 (was 1.6). No drop-shadows
 or glows. ≤1000 ms per step at 1× (settle cap in visuals/anim.js unchanged); Motion off = final state on the first frame.
-Text content: Diffie–Hellman column labels lose their emoji (👩 🌐 👨 🔒 😈 → "Alice (private)", "Public channel (Eve can see)",
-"Bob (private)", "(secret)", "Mallory (attacker)") — display strings only, no maths touched.
+Text content: the flow renderer (visuals/flow.js) shows plain labels instead of emoji pictograms (👩 🌐 👨 😈 dropped, 🔒 → "(secret)"), so methods/ stays untouched.
 
 ## 7. Logo
 Mark: a kryptonite **crystal shard** (pointed, faceted pentagon) with a **keyhole** knocked out of its centre —
