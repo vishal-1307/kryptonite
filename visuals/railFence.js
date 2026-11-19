@@ -53,7 +53,7 @@ function sync(el, d, animateChange) {
 export default {
   type: 'railFence',
   render(d) {
-    const grid = h('div', { class: 'rf-grid' });
+    const grid = h('div', { class: 'rf-grid', style: { gridTemplateColumns: `repeat(${d.cols}, 2em)`, gridTemplateRows: `repeat(${d.rails}, 2em)` } });
     const order = [...d.cells].sort((a, b) => a.c - b.c);
     const pts = order.map((x) => `${x.c * U + U / 2},${x.r * U + U / 2}`).join(' ');
     const total = Math.max(1, d.cols - 1);
@@ -67,10 +67,8 @@ export default {
       grid.append(cells[cell.c]);
     }
     const el = h('figure', { class: 'v-railfence' },
-      h('div', { class: 'rf-wrap' }, h('div', { class: 'rf-labels' }, Array.from({ length: d.rails }, (_, i) => h('span', {}, `Rail ${i + 1}`))), grid),
+      h('div', { class: 'rf-wrap' }, h('div', { class: 'rf-labels', style: { gridTemplateRows: `repeat(${d.rails}, 2em)` } }, Array.from({ length: d.rails }, (_, i) => h('span', {}, `Rail ${i + 1}`))), grid),
       h('figcaption', { class: 'mono' }));
-    el.style.setProperty('--rf-cols', d.cols);
-    el.style.setProperty('--rf-rails', d.rails);
     el._rf = { rails: d.rails, cols: d.cols, cells, path, prev: {}, drawn: 0 };
     sync(el, d, true); // first view: path draws from the left, any letters drop in
     return el;

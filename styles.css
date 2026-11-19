@@ -257,21 +257,15 @@ kbd { font-family: var(--mono); font-size: .8em; font-weight: 600; padding: .1re
 figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weight: 600; text-align: center; }
 
 /* rail fence */
-.v-railfence { margin: 0; width: max-content; max-width: 100%; overflow: hidden; }
-.rf-wrap { display: flex; gap: .5rem; align-items: start; max-width: 100%; min-width: 0; }
-.rf-labels { display: grid; grid-template-rows: repeat(var(--rf-rails, 3), minmax(0, 1fr)); color: var(--muted); font-weight: 600; align-items: center; white-space: nowrap; flex: 0 0 auto; }
-.rf-labels span { font-size: clamp(8px, 0.7rem, 0.7rem); line-height: 1; }
-.rf-grid { display: grid; gap: 0; position: relative; min-width: 0; flex: 0 1 auto; container-type: inline-size;
-  grid-template-columns: repeat(var(--rf-cols, 1), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--rf-rails, 3), minmax(0, 1fr));
-  width: calc(var(--rf-cols, 1) * 2em);
-  height: auto;
-  aspect-ratio: var(--rf-cols, 1) / var(--rf-rails, 3); }
+.v-railfence { margin: 0; max-width: 100%; overflow-x: auto; }
+.rf-wrap { display: flex; gap: .5rem; }
+.rf-labels { display: grid; color: var(--muted); font-weight: 600; align-items: center; white-space: nowrap; }
+.rf-labels span { font-size: .7rem; }
+.rf-grid { display: grid; gap: 0; position: relative; }
 .rf-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.rf-zigzag { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .45; }
-.rf-grid .cell { position: relative; place-self: stretch; box-sizing: border-box;
-  width: auto; height: auto; min-width: 0; min-height: 0; margin: 0; padding: 0;
-  font-size: clamp(8px, calc(100cqw / var(--rf-cols, 1) * 0.5), 0.85rem); }
+.rf-zigzag { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; opacity: .45; }
+.rf-grid .cell { position: relative; place-self: center; }
+.rf-grid .cell { width: 1.8em; height: 1.8em; min-width: 0; margin: .1em; font-size: .85rem; }
 .rf-grid .cell.is-slot { background: transparent; border-style: dashed; color: var(--muted); font-weight: 400; }
 
 /* matrix */
