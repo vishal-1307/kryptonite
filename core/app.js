@@ -4,6 +4,7 @@ import { visuals } from '../visuals/index.js';
 import { getActions, validate, runAction, defaultValues } from './contract.js';
 import { buildForm } from './form.js';
 import { StepPlayer } from './player.js';
+import * as anim from '../visuals/anim.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const byId = Object.fromEntries(methods.map((m) => [m.id, m]));
@@ -29,7 +30,10 @@ function applyPrefs() {
   $('#large-toggle').setAttribute('aria-pressed', prefs.get('large', '0') === '1');
 }
 $('#theme-toggle').addEventListener('click', () => { prefs.set('theme', document.documentElement.classList.contains('dark') ? 'light' : 'dark'); applyPrefs(); });
-$('#large-toggle').addEventListener('click', () => { prefs.set('large', prefs.get('large', '0') === '1' ? '0' : '1'); applyPrefs(); });
+// Presentation mode (big text + high contrast for projectors). Toggle with the top-bar button or the P key.
+function togglePresentation() { prefs.set('large', prefs.get('large', '0') === '1' ? '0' : '1'); applyPrefs(); }
+$('#large-toggle').addEventListener('click', togglePresentation);
+$('#large-toggle').title = 'Presentation mode: big text, high contrast (P)';
 applyPrefs();
 
 // ------------------------------------------------------------ views
@@ -88,7 +92,7 @@ function renderMethod(method, actionId) {
   let action = actions.find((a) => a.id === actionId) || actions[0];
 
   // --- input card
-  const formErr = h('div', { class: 'form-error', role: 'alert' });
+  const formErr = h('div', { class: 'form-error' }); // announced via the stage's role=alert panel (avoids double announcements)
   const form = buildForm(method, { onInput: () => scheduleRun() });
   const actionBar = h('div', { class: 'segmented', role: 'tablist' }, actions.map((a) => h('button', {
     type: 'button', role: 'tab', 'data-action': a.id, onclick: () => setAction(a.id, true),
@@ -107,15 +111,25 @@ function renderMethod(method, actionId) {
   const chainBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm' });
 
   // --- visualizer
-  const stepCount = h('span', { class: 'step-count' });
+  const stepCount = h('span', { class: 'step-count', 'aria-hidden': 'true' });
+  const live = h('p', { class: 'sr-only', 'aria-live': 'polite', 'aria-atomic': 'true' }); // announces step changes
   const stepTitle = h('h3', { class: 'step-title' });
-  const stage = h('div', { class: 'stage', 'aria-live': 'polite' });
+  const stage = h('div', { class: 'stage', role: 'group', 'aria-label': 'Visualization of the current step' });
   const explain = h('p', { class: 'explain' });
-  const btn = (label, title, fn, cls = '') => h('button', { type: 'button', class: `ctrl ${cls}`, title, 'aria-label': title, onclick: fn, html: ICONS[label] });
-  const playBtn = btn('play', 'Play / pause (Space)', () => player.toggle(), 'ctrl-play');
+  const btn = (icon, title, fn, cls = '', label = '') => h('button', { type: 'button', class: `ctrl ${cls}`, title, 'aria-label': title, onclick: fn,
+    html: ICONS[icon] + (label ? `<span class="ctrl-label">${label}</span>` : '') });
+  const playBtn = btn('play', 'Play / pause (Space)', () => player.toggle(), 'ctrl-play', 'Play');
+  const prevBtn = btn('prev', 'Previous step (←)', () => player.prev(), 'ctrl-step', 'Back');
+  const nextBtn = btn('next', 'Next step (→)', () => player.next(), 'ctrl-step', 'Next');
+  const firstBtn = btn('first', 'First step (Home)', () => player.first(), 'ctrl-edge');
+  const lastBtn = btn('last', 'Last step (End)', () => player.last(), 'ctrl-edge');
   const scrub = h('input', { type: 'range', min: 0, max: 0, value: 0, class: 'scrub', 'aria-label': 'Step', oninput: (e) => player.go(Number(e.target.value)) });
-  const speed = h('select', { class: 'speed', 'aria-label': 'Speed', onchange: (e) => player.setSpeed(Number(e.target.value)) },
+  const speed = h('select', { class: 'speed', id: 'speed', onchange: (e) => { anim.setSpeed(Number(e.target.value)); player.setSpeed(Number(e.target.value)); } },
     [0.5, 1, 1.5, 2, 4].map((x) => h('option', { value: x, selected: x === 1 }, `${x}×`)));
+  const kbd = (k) => h('kbd', {}, k);
+  const legend = h('p', { class: 'kbd-legend' },
+    h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play / pause'),
+    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' presentation mode'));
   const stepList = h('ol', { class: 'step-list' });
   const progress = h('div', { class: 'progress' }, h('span'));
 
@@ -138,48 +152,65 @@ function renderMethod(method, actionId) {
         progress,
         stage,
         explain,
-        h('div', { class: 'controls' },
-          btn('first', 'First step (Home)', () => player.first()),
-          btn('prev', 'Previous (←)', () => player.prev()),
-          playBtn,
-          btn('next', 'Next (→)', () => player.next()),
-          btn('last', 'Last step (End)', () => player.last()),
-          scrub, speed),
+        h('div', { class: 'controls', role: 'toolbar', 'aria-label': 'Step controls' },
+          h('div', { class: 'ctrl-main' }, firstBtn, prevBtn, playBtn, nextBtn, lastBtn),
+          h('label', { class: 'speed-wrap', for: 'speed' }, h('span', {}, 'Speed'), speed),
+          scrub),
+        legend, live,
         h('details', { class: 'all-steps' }, h('summary', {}, 'All steps'), stepList))),
   );
 
   // --- player wiring
   let nodes = []; // [{type, el}] for in-place updates (smooth animations)
   if (player) player.pause(false);
+  anim.setSpeed(1);
+  let shown = null; // the step object currently on stage (so play/pause/speed changes don't re-animate it)
+  let shownIndex = -1, shownList = null;
   player = new StepPlayer({ onChange: (p) => {
     const step = p.current;
     const n = p.steps.length;
-    stepCount.textContent = n ? `Step ${p.index + 1} / ${n}` : '';
+    stepCount.replaceChildren(...(n ? ['Step ', h('b', {}, String(p.index + 1)), ` of ${n}`] : []));
     stepTitle.textContent = step ? step.title : '';
     explain.textContent = step ? step.explanation : '';
-    playBtn.innerHTML = p.playing ? ICONS.pause : ICONS.play;
+    playBtn.innerHTML = (p.playing ? ICONS.pause : ICONS.play) + `<span class="ctrl-label">${p.playing ? 'Pause' : 'Play'}</span>`;
     playBtn.classList.toggle('is-playing', p.playing);
+    playBtn.setAttribute('aria-pressed', p.playing);
+    prevBtn.disabled = firstBtn.disabled = !n || p.index === 0;
+    nextBtn.disabled = lastBtn.disabled = !n || p.index >= n - 1;
     scrub.max = Math.max(0, n - 1); scrub.value = p.index;
-    progress.firstChild.style.width = n > 1 ? `${(p.index / (n - 1)) * 100}%` : '100%';
+    scrub.setAttribute('aria-valuetext', n ? `Step ${p.index + 1} of ${n}` : 'No steps');
+    progress.firstChild.style.width = n > 1 ? `${(p.index / (n - 1)) * 100}%` : n ? '100%' : '0%';
     [...stepList.children].forEach((li, i) => li.classList.toggle('is-current', i === p.index));
-    renderStage(step);
+    if (step !== shown) {
+      const direction = shownList === p.steps ? Math.sign(p.index - shownIndex) : 0; // +1 forward, −1 back, 0 fresh run
+      shown = step; shownIndex = p.index; shownList = p.steps;
+      renderStage(step, { direction });
+      live.textContent = step ? `Step ${p.index + 1} of ${n}: ${step.title}. ${step.explanation}` : '';
+    }
   } });
 
-  function renderStage(step) {
+  function renderStage(step, ctx = {}) {
+    anim.settle(); // finish the previous step's animations instantly so rapid clicks never pile up
     if (!step) { stage.replaceChildren(); nodes = []; return; }
     const list = [].concat(step.visual || []);
+    const fresh = [];
     const next = list.map((v, i) => {
       const r = visuals[v.type];
       if (!r) return { type: v.type, el: h('div', { class: 'v-missing' }, `Unknown visual type "${v.type}". Add it to visuals/index.js.`) };
       const prev = nodes[i];
-      if (prev && prev.type === v.type && r.update) { r.update(prev.el, v.data, step); return prev; }
-      const el = r.render(v.data, step);
-      el.classList.add('v', 'enter');
+      // update() may return false to ask for a fresh render (e.g. the layout changed size).
+      if (prev && prev.type === v.type && r.update && r.update(prev.el, v.data, step, ctx) !== false) return prev;
+      const el = r.render(v.data, step, ctx);
+      el.classList.add('v');
+      fresh.push(el);
       return { type: v.type, el };
     });
     stage.replaceChildren(...next.map((x) => x.el));
     stage.dataset.count = next.length;
     nodes = next;
+    fresh.forEach((el, i) => anim.enter(el, { delay: i * 70 }));
+    // Renderers that animate after being attached (they need layout) expose el.afterMount(ctx).
+    for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(ctx);
   }
 
   let lastRun = null; // { action, output } of the last successful run
@@ -212,10 +243,11 @@ function renderMethod(method, actionId) {
     const { fieldErrors, formError } = validate(method, action.id, values);
     form.showErrors(fieldErrors);
     formErr.textContent = formError || '';
-    if (Object.keys(fieldErrors).length || formError) { showFailed(); return; }
+    if (Object.keys(fieldErrors).length || formError) { showFailed(formError || Object.values(fieldErrors).join(' ')); return; }
     try {
       const res = runAction(method, action.id, values);
       outLabel.textContent = res.outputLabel || (action.label === 'Encrypt' ? 'Ciphertext' : action.label === 'Decrypt' ? 'Plaintext' : 'Result');
+      outValue.classList.remove('is-error');
       outValue.textContent = res.output || '(empty)';
       outValue.dataset.raw = res.output;
       outValue.classList.remove('flash'); void outValue.offsetWidth; outValue.classList.add('flash');
@@ -224,16 +256,26 @@ function renderMethod(method, actionId) {
       lastRun = { action: action.id, output: res.output };
     } catch (e) {
       formErr.textContent = e.message;
-      showFailed();
+      showFailed(e.message);
     }
   }
-  function showFailed() {
+  function showFailed(message) {
+    const msg = message || 'The input is not valid.';
     lastRun = null;
     outLabel.textContent = 'Fix the input to see a result';
-    outValue.textContent = '—';
+    outValue.textContent = msg;
+    outValue.classList.add('is-error');
     delete outValue.dataset.raw;
     stepList.replaceChildren();
     player.load([]);
+    // Same message in the stage, as an accessible alert (screen readers announce it once).
+    stepTitle.textContent = 'Can’t run yet';
+    const panel = h('div', { class: 'stage-error', role: 'alert' },
+      h('span', { class: 'stage-error-icon', 'aria-hidden': 'true' }, '!'),
+      h('div', {}, h('strong', {}, 'Input problem'), h('p', {}, msg)));
+    stage.replaceChildren(panel);
+    nodes = [];
+    anim.enter(panel);
   }
 
   setAction(action.id, false);
@@ -258,6 +300,9 @@ document.addEventListener('keydown', (e) => {
   if (!player || !main.classList.contains('view-method')) return;
   if (e.target.closest('input, textarea, select, [contenteditable]')) return;
   if (e.key === ' ' && e.target.closest('button, a, summary')) return;
-  const map = { ArrowRight: () => player.next(), ArrowLeft: () => player.prev(), ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last() };
+  // PageDown/PageUp are what most presentation clickers send.
+  const map = { ArrowRight: () => player.next(), ArrowLeft: () => player.prev(), PageDown: () => player.next(), PageUp: () => player.prev(),
+    ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last(), p: togglePresentation, P: togglePresentation };
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (map[e.key]) { map[e.key](); e.preventDefault(); }
 });

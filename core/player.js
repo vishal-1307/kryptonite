@@ -1,6 +1,6 @@
 // Step player: holds the step list and the playback state. UI-agnostic; the app subscribes via onChange.
 export class StepPlayer {
-  constructor({ onChange, baseDelay = 2200 } = {}) {
+  constructor({ onChange, baseDelay = 1400 } = {}) { // ms per step at 1× (delay = baseDelay / speed)
     this.steps = [];
     this.index = 0;
     this.playing = false;
@@ -20,8 +20,11 @@ export class StepPlayer {
   setSpeed(x) { this.speed = x; if (this.playing) this.schedule(); this.emit(); }
   play() {
     if (!this.steps.length) return;
-    if (this.atEnd) this.index = 0;
-    this.playing = true; this.emit(); this.schedule();
+    this.playing = true;
+    if (this.atEnd) { this.index = 0; this.emit(); } // restart from the first step
+    else this.go(this.index + 1); // advance immediately so pressing Play gives instant feedback
+    if (this.atEnd) { this.pause(); return; }
+    this.schedule();
   }
   pause(emit = true) { this.playing = false; clearTimeout(this.timer); if (emit) this.emit(); }
   toggle() { this.playing ? this.pause() : this.play(); }
