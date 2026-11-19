@@ -245,8 +245,12 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
 /* rail fence */
 .v-railfence { margin: 0; max-width: 100%; overflow-x: auto; }
 .rf-wrap { display: flex; gap: .5rem; }
-.rf-labels { display: grid; font-size: .7rem; color: var(--muted); font-weight: 600; align-items: center; white-space: nowrap; }
-.rf-grid { display: grid; gap: 0; }
+.rf-labels { display: grid; color: var(--muted); font-weight: 600; align-items: center; white-space: nowrap; }
+.rf-labels span { font-size: .7rem; }
+.rf-grid { display: grid; gap: 0; position: relative; }
+.rf-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.rf-zigzag { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; opacity: .45; }
+.rf-grid .cell { position: relative; place-self: center; }
 .rf-grid .cell { width: 1.8em; height: 1.8em; min-width: 0; margin: .1em; font-size: .85rem; }
 .rf-grid .cell.is-slot { background: transparent; border-style: dashed; color: var(--muted); font-weight: 400; }
 
