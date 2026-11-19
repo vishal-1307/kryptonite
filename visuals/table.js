@@ -24,17 +24,25 @@ function registerStrip(d) {
   live.classList.add('is-live');
   const stack = h('div', { class: 'reg-stack' }, frames, live);
   const slider = h('input', { type: 'range', min: 0, max: lastIdx, value: lastIdx, class: 'reg-slider', 'aria-label': 'Show the working variables after round t' });
+  const sliderWrap = h('label', { class: 'reg-slide-wrap' }, h('span', { class: 'small muted' }, 'Round'), slider);
   const wrap = h('div', { class: 'v-register' },
     h('div', { class: 'reg-head' }, h('strong', {}, 'Working variables a…h'), h('span', { class: 'muted small' }, 'each round every variable moves one place; a and e get new values')),
-    stack, h('label', { class: 'reg-slide-wrap' }, h('span', { class: 'small muted' }, 'Round'), slider));
+    stack, sliderWrap);
 
   const shiftAnim = (frame, delay) => {
     const cells = [...frame.querySelectorAll('.reg-cell')];
     const rects = cells.map((c) => c.getBoundingClientRect());
+    // Each value slides a short way in from the left inside its own cell (the cell clips it) while fading up, so
+    // neighbouring values never overlap mid-shift and a paused frame still reads; new a and e cross-fade in. The cells and their names stay put.
     cells.forEach((c, i) => {
-      if (i === 0 || i === 4) { pop(c, { delay: delay + 120, fill: 'none' }); return; }
-      const dx = rects[i - 1].left - rects[i].left, dy = rects[i - 1].top - rects[i].top;
-      animate(c, [{ transform: `translate(${dx}px, ${dy}px)`, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 320, delay, easing: EASE.inOut, fill: 'none' });
+      const val = c.querySelector('code');
+      if (i === 0 || i === 4) {
+        animate(val, [{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: 320, delay, fill: 'none' });
+        pop(c, { delay: delay + 120, fill: 'none' });
+        return;
+      }
+      const w = rects[i].width;
+      animate(val, [{ transform: `translateX(${-w * 0.45}px)`, opacity: 0.25 }, { transform: 'none', opacity: 1 }], { duration: 320, delay, easing: EASE.out, fill: 'none' });
     });
   };
   const setLive = (t) => {
@@ -52,6 +60,8 @@ function registerStrip(d) {
       shiftAnim(f, k * slot);
     });
     animate(live, [{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: frames.length * slot, reduce: 'none' });
+    // The slider shows the live frame's round (63), so it stays hidden while rounds 0–3 play, then fades in.
+    animate(sliderWrap, [{ opacity: 0, visibility: 'hidden' }, { opacity: 1, visibility: 'visible' }], { duration: 200, delay: frames.length * slot, reduce: 'none' });
   };
   return wrap;
 }

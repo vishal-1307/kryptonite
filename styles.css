@@ -330,7 +330,7 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
 .reg-frame.is-live { opacity: 1; }
 .reg-t { font-size: .8rem; font-weight: 600; color: var(--muted); }
 .reg-cells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .3rem; }
-.reg-cell { display: flex; flex-direction: column; align-items: center; padding: .3rem .2rem; border-radius: 8px; border: 1px solid var(--border); background: var(--cell); min-width: 0; }
+.reg-cell { overflow: hidden; display: flex; flex-direction: column; align-items: center; padding: .3rem .2rem; border-radius: 8px; border: 1px solid var(--border); background: var(--cell); min-width: 0; }
 .reg-cell code { font-size: .82rem; font-weight: 600; }
 .reg-cell small { font-size: .68rem; color: var(--muted); }
 .reg-name { font-weight: 700; color: var(--accent-text); }
