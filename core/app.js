@@ -180,13 +180,13 @@ function renderMethod(method, actionId) {
   if (player) player.pause(false);
   anim.setSpeed(1);
   let shown = null; // the step object currently on stage (so play/pause/speed changes don't re-animate it)
-  let shownIndex = -1, shownList = null;
+  let shownIndex = -1, shownList = null, stepsAction = null; // stepsAction: the action (e.g. encode/decode) that produced the steps
   player = new StepPlayer({ onChange: (p) => {
     const step = p.current;
     const n = p.steps.length;
     stepCount.replaceChildren(...(n ? ['Step ', h('b', {}, String(p.index + 1)), ` of ${n}`] : []));
     stepTitle.textContent = step ? step.title : '';
-    explain.textContent = step ? step.explanation : '';
+    renderExplanation(step ? step.explanation : '');
     playBtn.innerHTML = (p.playing ? ICONS.pause : ICONS.play) + `<span class="ctrl-label">${p.playing ? 'Pause' : 'Play'}</span>`;
     playBtn.classList.toggle('is-playing', p.playing);
     playBtn.setAttribute('aria-pressed', p.playing);
@@ -199,10 +199,26 @@ function renderMethod(method, actionId) {
     if (step !== shown) {
       const direction = shownList === p.steps ? Math.sign(p.index - shownIndex) : 0; // +1 forward, −1 back, 0 fresh run
       shown = step; shownIndex = p.index; shownList = p.steps;
-      renderStage(step, { direction });
+      renderStage(step, { direction, action: stepsAction });
       live.textContent = step ? `Step ${p.index + 1} of ${n}: ${step.title}. ${step.explanation}` : '';
     }
   } });
+
+  // Method text may say where the worked example sits ("worked out below"). Whether it is below or beside the
+  // grids depends on how the stage wraps, so both words are rendered and the stage's real layout picks one.
+  function renderExplanation(text) {
+    const parts = text.split(/\b(worked out below)\b/);
+    explain.replaceChildren(...parts.map((p) => (p === 'worked out below'
+      ? h('span', {}, 'worked out ', h('span', { class: 'where-below' }, 'below'), h('span', { class: 'where-right' }, 'on the right'))
+      : p)));
+  }
+  const syncStageLayout = () => {
+    // Side by side = some visual starts above the bottom of the one before it (the flex row did not wrap).
+    const kids = [...stage.children].map((c) => c.getBoundingClientRect());
+    const side = kids.some((r, i) => i > 0 && r.top < kids[i - 1].bottom - 4);
+    explain.classList.toggle('layout-side', side);
+  };
+  new ResizeObserver(syncStageLayout).observe(stage);
 
   function renderStage(step, ctx = {}) {
     anim.settle(); // finish the previous step's animations instantly so rapid clicks never pile up
@@ -223,6 +239,7 @@ function renderMethod(method, actionId) {
     stage.replaceChildren(...next.map((x) => x.el));
     stage.dataset.count = next.length;
     nodes = next;
+    syncStageLayout();
     fresh.forEach((el) => anim.enter(el)); // no delay: the new step must be visible immediately
     // Renderers that animate after being attached (they need layout) expose el.afterMount(ctx).
     for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(ctx);
@@ -267,6 +284,7 @@ function renderMethod(method, actionId) {
       outValue.dataset.raw = res.output;
       outValue.classList.remove('flash'); void outValue.offsetWidth; outValue.classList.add('flash');
       stepList.replaceChildren(...res.steps.map((s, i) => h('li', {}, h('button', { type: 'button', onclick: () => player.go(i) }, s.title))));
+      stepsAction = action.id; // set before load(): load() renders the first step
       player.load(res.steps);
       lastRun = { action: action.id, output: res.output };
     } catch (e) {
