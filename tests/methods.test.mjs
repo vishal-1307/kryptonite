@@ -6,10 +6,10 @@ import template from '../methods/_template.js';
 import caesar, { shiftText } from '../methods/caesar.js';
 import vigenere from '../methods/vigenere.js';
 import playfair, { keySquare } from '../methods/playfair.js';
-import railfence from '../methods/railfence.js';
+import railfence, { railEncrypt, railDecrypt } from '../methods/railfence.js';
 import hill from '../methods/hill.js';
 import aes, { SBOX, INV_SBOX, aesEncryptBlock, aesDecryptBlock, expandKey } from '../methods/aes.js';
-import rsa, { rsaKeys } from '../methods/rsa.js';
+import rsa, { rsaKeys, suggestPrimes } from '../methods/rsa.js';
 import dhMethod, { dh } from '../methods/diffiehellman.js';
 import sha256, { sha256Hex } from '../methods/sha256.js';
 import base64, { b64encode, b64decode } from '../methods/base64.js';
@@ -233,10 +233,15 @@ test('Diffie–Hellman rejects trivial generators and warns about small subgroup
   assert.match(dhMethod.validate({ p: 23, g: 22, a: 4, b: 3 }), /trivial generator/);
   assert.equal(dhMethod.validate({ p: 23, g: 2, a: 4, b: 3 }), null);
   const warn = dhMethod.exchange({ p: 23, g: 2, a: 4, b: 3 });
-  assert.ok(warn.steps.some((s) => /only produce 11/.test(s.explanation)));
+  const gen = warn.steps.find((s) => /Check the generator/.test(s.title));
+  assert.match(gen.explanation, /safe prime/);
+  assert.match(gen.explanation, /prime-order subgroup/);
+  assert.match(gen.explanation, /2048-bit/);
+  assert.doesNotMatch(gen.explanation, /small subgroup/);
   const ok = dhMethod.exchange({ p: 23, g: 5, a: 4, b: 3 });
   assert.ok(ok.steps.some((s) => /man|middle/i.test(s.title)), 'MITM step');
   assert.ok(ok.steps.some((s) => /HKDF/.test(s.explanation)), 'KDF wording');
+  assert.ok(ok.steps.some((s) => /private key that matches the server's certificate/.test(s.explanation)), 'TLS signs with the matching private key');
 });
 
 test('RSA: extended Euclid table derives d; helpful error messages', async () => {
@@ -284,4 +289,85 @@ test('Base64: empty string, base64url, unpadded, non-canonical, invalid UTF-8', 
   assert.equal(base64.decode({ text: 'Zm9vYg' }).output, 'foob');
   assert.throws(() => b64decode('Zh=='), /non-canonical/);
   assert.match(base64.decode({ text: '/w==' }).outputLabel, /not valid UTF-8/);
+  const abc = base64.decode({ text: 'abc' });
+  assert.deepEqual(b64decode('abc'), [105, 183]);
+  assert.ok(abc.steps.some((s) => s.title === 'Decoded bytes are not valid UTF-8 text'));
+  assert.match(abc.outputLabel, /not valid UTF-8 text \(hex: 69 b7\)/);
+});
+
+// ---------------------------------------------------------------- QA leftovers + review round 2
+test('Rail Fence core functions throw for rails < 2 or non-integers', () => {
+  for (const n of [0, 1, -1, 1.5, NaN, 'x']) {
+    assert.throws(() => railEncrypt('HELLO', n), /whole number of at least 2/);
+    assert.throws(() => railDecrypt('HELLO', n), /whole number of at least 2/);
+    assert.throws(() => railfence.encrypt({ text: 'HELLO', rails: n }), /whole number of at least 2/);
+    assert.throws(() => railfence.decrypt({ text: 'HELLO', rails: n }), /whole number of at least 2/);
+  }
+  assert.equal(railEncrypt('HELLO', 3), railfence.encrypt({ text: 'HELLO', rails: 3 }).output);
+});
+
+test('Rail Fence with 2 rails labels direction from the step into each leg', () => {
+  const titles = railfence.encrypt({ text: 'ABCDEF', rails: 2 }).steps.map((s) => s.title);
+  assert.deepEqual(titles.filter((s) => s.startsWith('Write characters')), [
+    'Write characters 1–2 (going down)',
+    'Write characters 3–3 (going up)',
+    'Write characters 4–4 (going down)',
+    'Write characters 5–5 (going up)',
+    'Write characters 6–6 (going down)',
+  ]);
+});
+
+test('Empty message is rejected with "Enter a message"; SHA-256 and Base64 allow empty', () => {
+  for (const [m, action] of [
+    [caesar, 'encrypt'], [caesar, 'decrypt'], [caesar, 'attack'],
+    [vigenere, 'encrypt'], [playfair, 'encrypt'], [railfence, 'encrypt'], [hill, 'encrypt'],
+    [aes, 'encrypt'], [rsa, 'encrypt'],
+  ]) {
+    const values = { ...defaults(m) };
+    if (m.id === 'aes') { values.format = 'text'; values.block = ''; }
+    else if (m.id === 'rsa') { values.format = 'text'; values.message = ''; }
+    else values[m.ioField || 'text'] = '';
+    const r = validate(m, action, values);
+    const msg = r.formError || Object.values(r.fieldErrors)[0];
+    assert.equal(msg, 'Enter a message', `${m.id}.${action} empty message`);
+  }
+  assert.deepEqual(validate(sha256, 'hash', { text: '' }), { fieldErrors: {}, formError: null });
+  assert.deepEqual(validate(base64, 'encode', { text: '' }), { fieldErrors: {}, formError: null });
+  assert.deepEqual(validate(base64, 'decode', { text: '' }), { fieldErrors: {}, formError: null });
+  assert.equal(sha256.hash({ text: '' }).output, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  assert.equal(base64.encode({ text: '' }).output, '');
+});
+
+test('RSA suggestPrimes is bounded, stays within the input limit, and is fast for huge ciphertext', () => {
+  assert.deepEqual(suggestPrimes(128512n), [359n, 367n]);
+  const t0 = Date.now();
+  assert.equal(suggestPrimes(999999999999999999n), null);
+  assert.ok(Date.now() - t0 < 200, 'must not scan up to sqrt of an 18-digit number');
+  assert.throws(
+    () => rsa.decrypt({ p: 61, q: 53, e: 17, format: 'numbers', message: '999999999999999999' }),
+    /use larger primes/,
+  );
+  const rec = suggestPrimes(10n ** 12n);
+  assert.ok(rec && rec[0] <= 10_000_000n && rec[1] <= 10_000_000n && rec[0] * rec[1] > 10n ** 12n);
+  const unsafe = rsa.encrypt({ p: 61, q: 53, e: 17, format: 'text', message: 'HI' }).steps.find((s) => /textbook RSA is unsafe/.test(s.title));
+  const smallE = unsafe.visual.data.rows[2][1];
+  assert.match(smallE, /Fixed example \(not your key\)/);
+  assert.match(smallE, /n = 55, e = 3, m = 2/);
+  assert.equal(unsafe.visual.data.headers[1], 'Demonstration');
+});
+
+test('SHA-256 K_t wording uses the (t+1)-th prime', () => {
+  const step = sha256.hash({ text: 'abc' }).steps.find((s) => /Compression round 0/.test(s.title));
+  assert.match(step.explanation, /\(t\+1\)-th prime/);
+});
+
+test('AES avalanche on short text flips a student letter, not a padding byte', () => {
+  const key = '2b7e151628aed2a6abf7158809cf4f3c';
+  const short = aes.encrypt({ format: 'text', block: 'hello', keyFormat: 'hex', key });
+  const av = short.steps.find((s) => s.title === 'Avalanche effect');
+  assert.match(av.explanation, /byte 5: 6f → 6e/); // 'o' of "hello", not padding 00 → 01
+  assert.doesNotMatch(av.explanation, /00 → 01/);
+  // Full 16-byte block still flips the last byte (FIPS-197 App. B: 64 bits change).
+  const full = aes.encrypt({ format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key });
+  assert.match(full.steps.find((s) => s.title === 'Avalanche effect').explanation, /byte 16: 34 → 35/);
 });

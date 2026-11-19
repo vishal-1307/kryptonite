@@ -157,7 +157,7 @@ export function parseKey(value, keyFormat = 'hex') {
 export function parseBlock(value, format, what) {
   if (format === 'text') {
     const bytes = utf8Encode(value);
-    if (!bytes.length) throw new Error(`${what} is empty.`);
+    if (!bytes.length) throw new Error('Enter a message');
     if (bytes.length > 16) throw new Error(`${what} is ${bytes.length} bytes; this single-block demo allows at most 16 bytes (16 plain English characters).`);
     return { bytes: bytes.concat(new Array(16 - bytes.length).fill(0)), padded: 16 - bytes.length };
   }
@@ -222,11 +222,13 @@ function run({ block, key, format, keyFormat = 'hex' }, decrypting) {
     visual: { type: 'byteGrid', data: { items: [g(decrypting ? 'Plaintext' : 'Ciphertext', output, ALL, 'out')] } },
   });
   if (!decrypting) {
-    const flipped = input.slice(); flipped[15] ^= 1;
+    // Flip a bit in the last student-supplied byte, not in padding (padding would be "00 → 01" for short text).
+    const flipIndex = padded ? 16 - padded - 1 : 15;
+    const flipped = input.slice(); flipped[flipIndex] ^= 1;
     const alt = aesEncryptBlock(flipped, k).output;
     steps.push({
       title: 'Avalanche effect',
-      explanation: `Flip just one bit of the plaintext (last byte ${toHex(input[15])} → ${toHex(flipped[15])}) and encrypt again: ${bitsDiffer(output, alt)} of the 128 ciphertext bits change, about half. Highlighted characters differ.`,
+      explanation: `Flip just one bit of the plaintext (byte ${flipIndex + 1}: ${toHex(input[flipIndex])} → ${toHex(flipped[flipIndex])}) and encrypt again: ${bitsDiffer(output, alt)} of the 128 ciphertext bits change, about half. Highlighted characters differ.`,
       visual: [{ type: 'digest', data: { label: 'Ciphertext', hex: bytesToHex(output) } }, { type: 'digest', data: { label: '1 plaintext bit changed', hex: bytesToHex(alt), compare: bytesToHex(output) } }],
     });
     steps.push({

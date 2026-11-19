@@ -5,13 +5,33 @@ export function suggestE(phi) {
   return [3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 65537n].filter((x) => x < phi && bgcd(x, phi) === 1n).slice(0, 4);
 }
 
-/** Two primes whose product is larger than `x`, used to suggest bigger keys. */
+const PRIME_INPUT_LIMIT = 10_000_000n; // matches the p/q input max
+const SUGGEST_CUTOFF = 10n ** 13n; // larger than this, skip the search (would also exceed the input limit)
+
+/** Integer square root, so we can start at ⌈√x⌉ instead of counting up from 2. */
+function isqrt(n) {
+  n = BigInt(n);
+  if (n < 2n) return n;
+  let x0 = n, x1 = (n + 1n) / 2n;
+  while (x1 < x0) { x0 = x1; x1 = (x1 + n / x1) / 2n; }
+  return x0;
+}
+
+/**
+ * Two primes whose product is larger than `x`, both at most 10,000,000 so they fit the inputs.
+ * Returns null when x is too large to suggest (above ~10^13, or no such pair within the limit).
+ */
 export function suggestPrimes(x) {
-  let p = 2n;
-  while (p * p <= x) p++;
-  while (!isPrime(p)) p++;
+  x = BigInt(x);
+  if (x >= SUGGEST_CUTOFF) return null;
+  let p = isqrt(x) + 1n;
+  if (p < 3n) p = 3n;
+  if (p > PRIME_INPUT_LIMIT) return null;
+  while (p <= PRIME_INPUT_LIMIT && !isPrime(p)) p++;
+  if (p > PRIME_INPUT_LIMIT) return null;
   let q = p + 1n;
-  while (!isPrime(q)) q++;
+  while (q <= PRIME_INPUT_LIMIT && !isPrime(q)) q++;
+  if (q > PRIME_INPUT_LIMIT || p * q <= x) return null;
   return [p, q];
 }
 
@@ -125,8 +145,12 @@ function run({ p, q, e, message, format }, decrypting) {
   }
   const tooBig = blocks.find((m) => m >= k.n);
   if (tooBig !== undefined) {
-    const [sp, sq] = suggestPrimes(tooBig);
-    throw new Error(`${tooBig} is not smaller than n = ${k.n}. Each block must be less than n, so choose primes whose product is larger than ${tooBig} (for example p = ${sp}, q = ${sq} gives n = ${sp * sq}).`);
+    const rec = suggestPrimes(tooBig);
+    if (rec) {
+      const [sp, sq] = rec;
+      throw new Error(`${tooBig} is not smaller than n = ${k.n}. Each block must be less than n, so choose primes whose product is larger than ${tooBig} (for example p = ${sp}, q = ${sq} gives n = ${sp * sq}).`);
+    }
+    throw new Error(`${tooBig} is not smaller than n = ${k.n}. Each block must be less than n. This number is too large for the primes this demo allows (p and q must be at most 10,000,000); use larger primes in a real system, or a smaller message here.`);
   }
   const exp = decrypting ? k.d : k.e;
   const results = blocks.map((x) => modPowTrace(x, exp, k.n).result);
@@ -152,14 +176,16 @@ function unsafeStep(k) {
   const enc = (m) => modPowTrace(m, k.e, k.n).result;
   let f = 2n, tries = 0;
   while (k.n % f !== 0n) { f++; tries++; }
+  const sample = k.n > 72n ? 72n : (k.n > 65n ? 65n : 2n);
+  const sampleNote = sample === 72n ? "72 ('H')" : sample === 65n ? "65 ('A')" : '2';
   return {
     title: 'Why textbook RSA is unsafe',
     explanation: 'What you just saw is "textbook" RSA: no padding and tiny numbers. Real RSA uses 2048-bit or larger n and OAEP padding (signatures use PSS), which adds randomness so these attacks fail. Never implement RSA this way for real data.',
-    visual: { type: 'table', data: { headers: ['Problem', 'Demonstrated with your key', 'Fix'], rows: [
-      ['Deterministic: same message → same ciphertext', `m = 72 ('H') always gives c = ${enc(72n % k.n)}, so an attacker can build a dictionary`, 'Random padding (OAEP)'],
-      ['Some messages do not change', `0 → ${enc(0n)}, 1 → ${enc(1n)}, ${k.n - 1n} → ${enc(k.n - 1n)}`, 'Padding'],
-      ['Small e and small m: no wrap-around', 'n = 55, e = 3, m = 2 → c = 8; the integer cube root of 8 gives m = 2 back', 'Padding makes m large'],
-      ['Small n can be factored', `n = ${k.n} = ${f} × ${k.n / f}, found by trial division in ${tries + 1} tries; then φ and d follow`, 'n of 2048+ bits'],
+    visual: { type: 'table', data: { headers: ['Problem', 'Demonstration', 'Fix'], rows: [
+      ['Deterministic: same message → same ciphertext', `With your key, m = ${sampleNote} always gives c = ${enc(sample)}, so an attacker can build a dictionary`, 'Random padding (OAEP)'],
+      ['Some messages do not change', `With your key, 0 → ${enc(0n)}, 1 → ${enc(1n)}, ${k.n - 1n} → ${enc(k.n - 1n)}`, 'Padding'],
+      ['Small e and small m: no wrap-around', 'Fixed example (not your key): n = 55, e = 3, m = 2 → c = 8; the integer cube root of 8 gives m = 2 back', 'Padding makes m large'],
+      ['Small n can be factored', `With your key, n = ${k.n} = ${f} × ${k.n / f}, found by trial division in ${tries + 1} tries; then φ and d follow`, 'n of 2048+ bits'],
     ], highlightRows: [3] } },
   };
 }
@@ -180,10 +206,11 @@ export default {
     { id: 'format', label: 'Message format', type: 'select', default: 'text', options: [{ value: 'text', label: 'Text (each character → its code)' }, { value: 'numbers', label: 'Numbers (space-separated)' }] },
     { id: 'message', label: 'Message', type: 'textarea', default: 'HI', help: 'When decrypting, paste the ciphertext numbers' },
   ],
-  validate: ({ p, q }) => {
+  validate: ({ p, q, message }) => {
     if (!isPrime(p)) return `p = ${p} is not prime. Try 61.`;
     if (!isPrime(q)) return `q = ${q} is not prime. Try 53.`;
     if (p === q) return 'p and q must be different.';
+    if (!String(message ?? '').length) return 'Enter a message';
     return null;
   },
   encrypt: (v) => run(v, false),

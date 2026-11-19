@@ -115,6 +115,7 @@ export default {
     { id: 'key', label: 'Key matrix', type: 'text', default: '3 3 2 5', help: '4 numbers row by row (a b c d) or a 4-letter word',
       validate: (v) => { try { const K = parseKey(v); const { dInv, det } = inverseKey(K); return dInv === null ? `Determinant ${det} is not invertible mod 26. Try "3 3 2 5".` : null; } catch (e) { return e.message; } } },
   ],
+  validate: ({ text }) => (!String(text ?? '').length ? 'Enter a message' : /[A-Za-z]/.test(text) ? null : 'The message needs at least one letter.'),
   encrypt: (v) => run(v, false),
   decrypt: (v) => run(v, true),
 };

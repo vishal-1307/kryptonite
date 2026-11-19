@@ -56,6 +56,8 @@ export default {
     const { A, B, sA, sB } = dh(p, g, a, b);
     const ord = orderOf(g, p);
     const full = ord === BigInt(p - 1);
+    const safeSubgroup = !full && ord * 2n === BigInt(p - 1) && isPrime(ord);
+    const smallSubgroup = !full && !safeSubgroup && ord * 4n < BigInt(p - 1);
     const flow = (alice, pub, bob) => ({ type: 'flow', data: { columns: [col('👩 Alice', alice), col('🌐 Public channel (Eve can see)', pub), col('👨 Bob', bob)] } });
     const hi = (text) => ({ text, highlight: true });
     const t = (text) => ({ text });
@@ -65,9 +67,13 @@ export default {
       { title: 'Check the generator g',
         explanation: full
           ? `The powers of g = ${g} produce all ${p - 1} possible values mod ${p} (g is a primitive root). That is good: the secret can be any of them.`
-          : `⚠ Warning: the powers of g = ${g} only produce ${ord} of the ${p - 1} possible values (order ${ord}). The shared secret can only be one of those ${ord} values, which makes guessing easier (a "small subgroup"). Real systems use standard safe groups such as RFC 3526 / RFC 7919 or elliptic curves.`,
+          : safeSubgroup
+            ? `p = ${p} is a safe prime ((p−1)/2 = ${ord} is also prime) and g = ${g} generates the prime-order subgroup of size ${ord}. That design is standard — RFC 3526 groups also use a generator of order (p−1)/2 (often g = 2). The weakness here is only that these numbers are tiny: real systems use 2048-bit or larger groups (RFC 3526 / RFC 7919) or elliptic curves.`
+            : smallSubgroup
+              ? `⚠ Warning: the powers of g = ${g} only produce ${ord} of the ${p - 1} possible values (order ${ord}). That is a small subgroup compared with p−1, so the shared secret is easier to guess. Choose a g whose order is p−1 (a primitive root) or (p−1)/2 in a safe prime. Real systems use 2048-bit or larger groups (RFC 3526).`
+              : `The powers of g = ${g} produce ${ord} of the ${p - 1} possible values (order ${ord}). Prefer a primitive root (order p−1) or, in a safe prime, the subgroup of order (p−1)/2. Real systems use 2048-bit or larger groups (RFC 3526).`,
         visual: { type: 'math', data: { lines: [
-          { expr: `order of g = ${ord}`, note: full ? 'primitive root ✓' : `only ${ord} possible secrets ⚠`, highlight: true },
+          { expr: `order of g = ${ord}`, note: full ? 'primitive root ✓' : safeSubgroup ? 'prime-order subgroup ✓ (p is tiny)' : `only ${ord} possible secrets ⚠`, highlight: true },
           { expr: `p − 1 = ${p - 1}`, note: 'maximum possible order' },
         ] } } },
       { title: 'Each picks a private secret', explanation: `Alice secretly picks a = ${a} and Bob secretly picks b = ${b}. These never leave their computers.`,
@@ -90,7 +96,7 @@ export default {
     const sBM = dh(p, g, m, b).sB; // Bob computes M^b
     steps.push({
       title: '⚠ But an active attacker can sit in the middle',
-      explanation: `Plain Diffie–Hellman does not prove WHO you are talking to. Mallory intercepts the traffic, picks her own secret m = ${m}, and sends M = g^m mod p = ${M} to both sides. Alice ends up sharing ${sAM} with Mallory and Bob shares ${sBM} with Mallory; Mallory decrypts and re-encrypts everything. Real protocols use authenticated Diffie–Hellman: TLS signs the exchange with the server's certificate, and Signal checks safety numbers.`,
+      explanation: `Plain Diffie–Hellman does not prove WHO you are talking to. Mallory intercepts the traffic, picks her own secret m = ${m}, and sends M = g^m mod p = ${M} to both sides. Alice ends up sharing ${sAM} with Mallory and Bob shares ${sBM} with Mallory; Mallory decrypts and re-encrypts everything. Real protocols use authenticated Diffie–Hellman: TLS signs the exchange with the private key that matches the server's certificate, and Signal checks safety numbers.`,
       visual: [
         flow([t(`a = ${a} 🔒`), t(`sent A = ${A}`), hi(`received M = ${M} (thinks it is Bob's)`), hi(`key with Mallory = ${sAM}`)],
           [hi(`😈 Mallory: m = ${m}`), t(`intercepts A = ${A}, B = ${B}`), hi(`sends M = ${M} both ways`), hi(`knows both keys: ${sAM} and ${sBM}`)],

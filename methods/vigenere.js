@@ -74,6 +74,7 @@ export default {
     { id: 'text', label: 'Message', type: 'textarea', default: 'ATTACK AT DAWN' },
     { id: 'key', label: 'Keyword', type: 'text', default: 'LEMON', validate: (v) => (/[A-Za-z]/.test(v) ? null : 'The keyword needs at least one letter.') },
   ],
+  validate: ({ text }) => (String(text ?? '').length ? null : 'Enter a message'),
   encrypt: (v) => run(v, false),
   decrypt: (v) => run(v, true),
 };

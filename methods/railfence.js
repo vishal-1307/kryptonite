@@ -11,20 +11,29 @@ export function zigzag(len, rails) {
   return rows;
 }
 
+/** Rails must be an integer ≥ 2; the UI also caps at 10, but the core functions do not. */
+export function assertRails(rails) {
+  const n = Number(rails);
+  if (!Number.isInteger(n) || n < 2) throw new Error('Rails must be a whole number of at least 2.');
+  return n;
+}
+
 export function railEncrypt(text, rails) {
+  const n = assertRails(rails);
   const chars = [...text];
-  const rows = zigzag(chars.length, rails);
+  const rows = zigzag(chars.length, n);
   let out = '';
-  for (let r = 0; r < rails; r++) chars.forEach((ch, i) => { if (rows[i] === r) out += ch; });
+  for (let r = 0; r < n; r++) chars.forEach((ch, i) => { if (rows[i] === r) out += ch; });
   return out;
 }
 
 export function railDecrypt(text, rails) {
+  const n = assertRails(rails);
   const chars = [...text];
-  const rows = zigzag(chars.length, rails);
+  const rows = zigzag(chars.length, n);
   const res = new Array(chars.length);
   let k = 0;
-  for (let r = 0; r < rails; r++) rows.forEach((row, i) => { if (row === r) res[i] = chars[k++]; });
+  for (let r = 0; r < n; r++) rows.forEach((row, i) => { if (row === r) res[i] = chars[k++]; });
   return res.join('');
 }
 
@@ -33,7 +42,7 @@ const show = (ch) => (ch === ' ' ? '␣' : ch);
 function run({ text, rails }, decrypting) {
   const chars = [...text];
   if (!chars.length) throw new Error('Enter a message.');
-  const n = Number(rails);
+  const n = assertRails(rails);
   const rows = zigzag(chars.length, n);
   const plain = decrypting ? [...railDecrypt(text, n)] : chars;
   const output = decrypting ? plain.join('') : railEncrypt(text, n);
@@ -53,7 +62,9 @@ function run({ text, rails }, decrypting) {
     if (cur.length) legs.push(cur);
     for (const idx of legs) {
       const s0 = idx[0], end = idx[idx.length - 1];
-      const dir = rows[end] > rows[s0] || (idx.length === 1 && rows[s0] === 0) ? 'going down' : 'going up';
+      // Direction is the step that reached this leg (rows[i] − rows[i−1]), not the rail the leg sits on.
+      const delta = s0 === 0 ? (idx.length > 1 ? rows[1] - rows[0] : 1) : rows[s0] - rows[s0 - 1];
+      const dir = delta > 0 ? 'going down' : 'going up';
       steps.push({ title: `Write characters ${s0 + 1}–${end + 1} (${dir})`, explanation: `Continue the zigzag ${dir}: ${idx.map((i) => show(chars[i])).join(' ')}. The direction turns around at the top and bottom rails.`, visual: fence(cellsUpTo((i) => i <= end), idx.map((i) => [rows[i], i])) });
     }
     let soFar = '';
@@ -92,7 +103,7 @@ export default {
     { id: 'rails', label: 'Rails (key)', type: 'number', default: 3, min: 2, max: 10,
       validate: (v) => (Number.isInteger(v) && v >= 2 && v <= 10 ? null : 'Rails must be a whole number from 2 to 10.') },
   ],
-  validate: ({ text }) => ([...text].length > 80 ? 'Keep Rail Fence messages to 80 characters so the fence fits on screen.' : null),
+  validate: ({ text }) => (!String(text ?? '').length ? 'Enter a message' : [...text].length > 80 ? 'Keep Rail Fence messages to 80 characters so the fence fits on screen.' : null),
   encrypt: (v) => run(v, false),
   decrypt: (v) => run(v, true),
 };

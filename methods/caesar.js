@@ -89,6 +89,7 @@ export default {
     { id: 'shift', label: 'Shift (key)', type: 'number', default: 3, min: 0, max: 25, help: '0 – 25', showFor: ['encrypt', 'decrypt'],
       validate: (v) => (Number.isInteger(v) && v >= 0 && v <= 25 ? null : 'Shift must be a whole number from 0 to 25.') },
   ],
+  validate: ({ text }) => (String(text ?? '').length ? null : 'Enter a message'),
   actions: [
     { id: 'encrypt', label: 'Encrypt' },
     { id: 'decrypt', label: 'Decrypt' },

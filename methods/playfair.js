@@ -116,7 +116,7 @@ export default {
     { id: 'text', label: 'Message', type: 'textarea', default: 'Hide the gold in the tree stump' },
     { id: 'key', label: 'Keyword', type: 'text', default: 'playfair example' },
   ],
-  validate: ({ text }) => (/[A-Za-z]/.test(text) ? null : 'The message needs at least one letter.'),
+  validate: ({ text }) => (!String(text ?? '').length ? 'Enter a message' : /[A-Za-z]/.test(text) ? null : 'The message needs at least one letter.'),
   encrypt: (v) => run(v, false),
   decrypt: (v) => run(v, true),
 };

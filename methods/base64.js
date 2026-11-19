@@ -115,6 +115,13 @@ export default {
       steps.push({ title: `${clean.slice((i / 3) * 4, (i / 3) * 4 + 4)} → bytes ${i + 1}–${Math.min(bytes.length, i + 3)}`, explanation: 'Look up each character\'s 6-bit value, join the bits, and cut them back into 8-bit bytes. "=" padding is dropped.', visual: groupVisual(bytes, i, clean) });
     }
     const hex = bytes.map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    if (badUtf8) {
+      steps.push({
+        title: 'Decoded bytes are not valid UTF-8 text',
+        explanation: `⚠ These ${bytes.length} bytes are not valid UTF-8 text (probably binary data such as an image or a key), so some characters are shown as �. The raw bytes in hex are shown too.`,
+        visual: { type: 'digest', data: { label: 'Decoded bytes (hex)', hex } },
+      });
+    }
     steps.push({ title: 'Result',
       explanation: (badUtf8 ? `⚠ These ${bytes.length} bytes are not valid UTF-8 text (probably binary data such as an image or a key), so some characters are shown as �. The raw bytes in hex are shown too. ` : '')
         + 'Anyone can do this — so never use Base64 to "hide" passwords or secrets.',

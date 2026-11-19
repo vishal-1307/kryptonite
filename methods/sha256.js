@@ -112,7 +112,7 @@ export default {
       });
       steps.push({
         title: `Compression round 0${tag}`,
-        explanation: 'Each round computes two temporary words and shifts the eight working variables a…h down by one. Σ are rotations, Ch picks bits from f or g depending on e, Maj takes the majority bit of a, b, c, and Kₜ is a round constant (the first 32 bits of the fractional part of the cube root of the t-th prime).',
+        explanation: 'Each round computes two temporary words and shifts the eight working variables a…h down by one. Σ are rotations, Ch picks bits from f or g depending on e, Maj takes the majority bit of a, b, c, and Kₜ is a round constant (the first 32 bits of the fractional part of the cube root of the (t+1)-th prime, because t starts at 0).',
         visual: { type: 'math', data: { lines: [
           { expr: 'T1 = h + Σ1(e) + Ch(e,f,g) + K0 + W0', note: `= ${w32(r0.T1)}` },
           { expr: 'T2 = Σ0(a) + Maj(a,b,c)', note: `= ${w32(r0.T2)}` },
