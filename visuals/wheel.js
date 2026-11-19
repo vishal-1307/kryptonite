@@ -69,7 +69,7 @@ function apply(el, d, animateTravel) {
   animate(tCipher, [{ opacity: 0 }, { opacity: 0, offset: 0.85 }, { opacity: 1 }], opts);
   // Tick each outer letter the token passes over (1 … n), timed with the travel.
   const passed = Array.from({ length: n }, (_, k) => el.querySelector(`.outer.l${(d.active + Math.sign(delta) * (k + 1) + 26) % 26} .dot`));
-  stagger(passed, [{ transform: 'scale(1)' }, { transform: 'scale(1.35)', offset: 0.4 }, { transform: 'scale(1)' }],
+  stagger(passed, [{ fill: 'var(--surface)' }, { fill: 'var(--hl)', offset: 0.3 }, { fill: 'var(--surface)' }],
     { duration: 260, each: (duration - 200) / n, maxTotal: duration, delay: 60, reduce: 'none' });
   pop(el.querySelector(`.outer.l${target} .dot`), { delay: duration - 40 });
 }

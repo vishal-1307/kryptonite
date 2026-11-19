@@ -104,7 +104,7 @@ export default {
         // paused at any moment shows the readout of exactly the byte that is highlighted. The resting pin is hidden
         // during the sweep and comes back when it ends (or when settle() finishes it).
         const slot = Math.min(60, 900 / 16);
-        const on = { boxShadow: '0 0 0 3px var(--accent)' }, off = { boxShadow: '0 0 0 0 transparent' };
+        const on = { boxShadow: '0 0 0 2px var(--text)' }, off = { boxShadow: '0 0 0 0 transparent' };
         const sweep = [];
         COLMAJOR.forEach((i, k) => {
           const t = start + k * slot;
@@ -131,7 +131,7 @@ export default {
             animate(aCells[i], wraps
               ? [{ transform: from, opacity: 0 }, { opacity: 0, offset: 0.3 }, { transform: 'none', opacity: 1 }]
               : [{ transform: from }, { transform: 'none' }], { duration: 300 + 90 * r, delay: (r - 1) * 220, easing: EASE.inOut });
-            animate(bCells[i], [{ backgroundColor: 'var(--accent-soft)' }, { backgroundColor: 'var(--card)' }], { duration: 500, delay: (r - 1) * 220, reduce: 'none', fill: 'none' });
+            animate(bCells[i], [{ backgroundColor: 'var(--hl)' }, { backgroundColor: 'var(--card)' }], { duration: 500, delay: (r - 1) * 220, reduce: 'none', fill: 'none' });
           }
         }
       } else if (op === 'MixColumns' || op === 'InvMixColumns') {
@@ -140,7 +140,7 @@ export default {
           for (let r = 0; r < 4; r++) {
             const i = r + 4 * c;
             pop(bCells[i], { delay: t, fill: 'none' });
-            animate(bCells[i], [{ boxShadow: '0 0 0 3px var(--ok)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 420, delay: t, reduce: 'none', fill: 'none' });
+            animate(bCells[i], [{ boxShadow: '0 0 0 2px var(--out)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 420, delay: t, reduce: 'none', fill: 'none' });
             animate(aCells[i], [{ transform: 'rotateY(90deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, delay: t + 150 + r * 30 });
           }
         }

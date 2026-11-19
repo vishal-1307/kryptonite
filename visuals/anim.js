@@ -26,9 +26,9 @@ export function setSpeed(x) { speed = x > 0 ? x : 1; }
 /** Motion tokens (ms). Mirrors the --dur-* CSS custom properties in styles.css. */
 export const DUR = { fast: 160, base: 320, slow: 560, travel: 900 };
 export const EASE = {
-  out: 'cubic-bezier(.2, .8, .2, 1)',
+  out: 'cubic-bezier(.2, .7, .2, 1)',
   inOut: 'cubic-bezier(.6, 0, .2, 1)',
-  spring: 'cubic-bezier(.3, 1.4, .5, 1)',
+  spring: 'cubic-bezier(.2, .7, .2, 1)', // kept for callers; no overshoot (calm motion, no bounce)
 };
 
 const scale = (ms) => Math.round(ms / speed);
@@ -63,8 +63,8 @@ export function stagger(list, keyframes, { each = 60, maxTotal = 700, ...opts } 
  *  is skipped, so the visual is in its final state immediately. */
 export const enter = (el, opts = {}) => animate(el, [{ opacity: 0.5, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 200, ...opts, delay: 0 });
 
-/** Attention pulse for something that just changed (resting state is unchanged). */
-export const pop = (el, opts = {}) => animate(el, [{ transform: 'scale(.82)' }, { transform: 'scale(1.1)', offset: 0.6 }, { transform: 'none' }], { duration: DUR.base, easing: EASE.out, reduce: 'none', ...opts });
+/** Attention cue for something that just changed: a short settle from slightly smaller, no overshoot (resting state is unchanged). */
+export const pop = (el, opts = {}) => animate(el, [{ transform: 'scale(.9)', opacity: 0.6 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, easing: EASE.out, reduce: 'none', ...opts });
 
 /** Jump every running animation to its end state. Called before each step renders. */
 export function settle() {

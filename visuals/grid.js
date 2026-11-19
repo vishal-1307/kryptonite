@@ -71,7 +71,7 @@ function drawOverlay(el, d, animated) {
   arrows.forEach((a, i) => animate(a, draw, { duration: 400, delay: tArrow + i * 100, easing: EASE.inOut }));
   d.primary.forEach(([r, c]) => pop(node(r, c)));
   // A cell can be both an input and an output (e.g. DE → OD in one column): never hide an input letter, just pop it.
-  d.secondary.forEach(([r, c], i) => (has(d.primary, r, c) ? pop(node(r, c), { delay: tOut + i * 100 }) : animate(node(r, c), [{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)', transform: 'none' }, { transform: 'scale(1.12)', offset: 0.7 }, { transform: 'none' }],
+  d.secondary.forEach(([r, c], i) => (has(d.primary, r, c) ? pop(node(r, c), { delay: tOut + i * 100 }) : animate(node(r, c), [{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--line)', transform: 'scale(.92)' }, { transform: 'none' }],
     { duration: DUR.base, delay: tOut + i * 100 })));
   animate(el.querySelector('figcaption'), [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: DUR.base, delay: tShape });
 }
@@ -108,7 +108,7 @@ export default {
     // Needs layout for the overlay → drawn once the app has attached the element.
     el.afterMount = () => {
       drawOverlay(el, el._g.data, true);
-      if (!ruleOf(d)) stagger(lit, [{ transform: 'scale(.7)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, each: 45, maxTotal: 600 });
+      if (!ruleOf(d)) stagger(lit, [{ transform: 'scale(.88)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, each: 45, maxTotal: 600 });
     };
     if (typeof ResizeObserver === 'function') {
       // Projector toggle / window resize → redraw the overlay statically (no replay) at the new size.
@@ -122,7 +122,7 @@ export default {
     st.data = d;
     const { rule, lit } = sync(el, d);
     drawOverlay(el, d, true);
-    if (!rule) stagger(lit, [{ transform: 'scale(.7)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, each: 45, maxTotal: 600 });
+    if (!rule) stagger(lit, [{ transform: 'scale(.88)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, each: 45, maxTotal: 600 });
     return true;
   },
 };

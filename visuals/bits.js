@@ -60,7 +60,7 @@ export default {
     // Zero bits drop in after their group appears; "=" characters stamp in after the last group.
     const groupDelay = (gi) => (gi * 2) * gap; // group gi is child 2*gi (arrows sit between groups)
     if (padGroup >= 0) stagger(padBits, [{ opacity: 0, transform: 'translateY(-0.8em)' }, { opacity: 1, transform: 'none' }], { duration: 260, each: 70, delay: groupDelay(padGroup) + 220 });
-    padChars.forEach((c, k) => animate(c, [{ opacity: 0, transform: 'scale(1.6)' }, { opacity: 1, transform: 'none' }], { duration: 300, delay: groupDelay(groups.length - 1) + 260 + k * 120 }));
+    padChars.forEach((c, k) => animate(c, [{ opacity: 0, transform: 'scale(1.2)' }, { opacity: 1, transform: 'none' }], { duration: 300, delay: groupDelay(groups.length - 1) + 260 + k * 120 }));
     return el;
   },
 };
