@@ -97,7 +97,8 @@ function run({ text, key }, decrypting) {
   steps.push({
     title: 'Result',
     explanation: (pairs.length > MAX_PAIR_STEPS ? `The first ${MAX_PAIR_STEPS} pairs were shown; the rest work the same way. ` : '')
-      + 'Hill was the first cipher built on linear algebra. Because it is linear, an attacker who knows a few plaintext–ciphertext pairs can solve for the key.',
+      + (decrypting ? 'If the original message had an odd number of letters, the last letter here is the padding X that was added before encryption; Hill cannot tell, so remove it by reading. ' : '')
+      + 'Hill was the first cipher built on linear algebra. Because it is linear, an attacker who knows two plaintext–ciphertext pairs can solve for the 2×2 key with one matrix inversion (a known-plaintext attack).',
     visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: [...prepared] }, { label: 'Out', cells: [...output] }] } },
   });
   return { output, steps };

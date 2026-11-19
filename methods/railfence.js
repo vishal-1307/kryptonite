@@ -43,11 +43,18 @@ function run({ text, rails }, decrypting) {
 
   if (!decrypting) {
     steps.push({ title: `Draw ${n} rails`, explanation: `The message is written diagonally down and up across ${n} rows ("rails"), like a zigzag fence. Spaces are kept and shown as ␣.`, visual: fence(cellsUpTo(() => false), [], '', true) });
-    const leg = Math.max(1, n - 1);
-    for (let s = 0; s < chars.length; s += leg) {
-      const end = Math.min(chars.length - 1, s + leg - 1);
-      const idx = []; for (let i = s; i <= end; i++) idx.push(i);
-      steps.push({ title: `Write letters ${s + 1}–${end + 1}`, explanation: `Continue the zigzag: ${idx.map((i) => show(chars[i])).join(' ')} ${rows[s] <= rows[end] ? 'going down' : 'going up'}.`, visual: fence(cellsUpTo((i) => i <= end), idx.map((i) => [rows[i], i])) });
+    // Split the writing into legs at the turning points (top and bottom rail).
+    const legs = [];
+    let cur = [];
+    rows.forEach((r, i) => {
+      cur.push(i);
+      if ((r === n - 1 || (r === 0 && i > 0)) && i < rows.length - 1) { legs.push(cur); cur = []; }
+    });
+    if (cur.length) legs.push(cur);
+    for (const idx of legs) {
+      const s0 = idx[0], end = idx[idx.length - 1];
+      const dir = rows[end] > rows[s0] || (idx.length === 1 && rows[s0] === 0) ? 'going down' : 'going up';
+      steps.push({ title: `Write characters ${s0 + 1}–${end + 1} (${dir})`, explanation: `Continue the zigzag ${dir}: ${idx.map((i) => show(chars[i])).join(' ')}. The direction turns around at the top and bottom rails.`, visual: fence(cellsUpTo((i) => i <= end), idx.map((i) => [rows[i], i])) });
     }
     let soFar = '';
     for (let r = 0; r < n; r++) {
@@ -67,7 +74,10 @@ function run({ text, rails }, decrypting) {
     }
     steps.push({ title: 'Read the zigzag', explanation: 'Now follow the zigzag from left to right to recover the original message.', visual: fence(cellsUpTo(() => true), plain.map((_, i) => [rows[i], i]), `Output: ${output}`) });
   }
-  steps.push({ title: 'Result', explanation: 'Rail Fence is a transposition cipher: the letters are not changed, only their order. The number of rails is the key.', visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: chars.map(show) }, { label: 'Out', cells: [...output].map(show) }] } } });
+  if (n >= chars.length) {
+    steps.unshift({ title: '⚠ Too many rails', explanation: `With ${n} rails and only ${chars.length} characters, the zigzag never turns around: every character sits on its own rail, so the output is identical to the input. Use fewer rails than characters.`, visual: { type: 'math', data: { lines: [{ expr: `rails (${n}) ≥ length (${chars.length})`, note: 'output = input', highlight: true }] } } });
+  }
+  steps.push({ title: 'Result', explanation: 'Rail Fence is a transposition cipher: the letters are not changed, only their order. The number of rails is the key, and there are only a few possible keys, so it is easy to brute-force.', visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: chars.map(show) }, { label: 'Out', cells: [...output].map(show) }] } } });
   return { output, steps };
 }
 

@@ -66,13 +66,21 @@ function run({ text, key }, decrypting) {
     title: 'Build the 5×5 key square',
     explanation: `Write the key letters (without repeats) first, then the rest of the alphabet. I and J share one cell so 25 letters fit. Highlighted cells come from the key "${key}".`,
     visual: { type: 'grid', data: { cells: sq.grid, primary: sq.keyLetters.map((ch) => sq.pos[ch]) } },
-  }, {
+  }];
+  if (!sq.keyLetters.length) {
+    steps.push({
+      title: '⚠ Empty key = plain alphabet square',
+      explanation: 'The key has no letters, so the square is just the alphabet in order (A–Z without J). Anyone can rebuild it, so this offers NO security. It is still useful to practise the rules; for real secrecy pick a keyword.',
+      visual: { type: 'grid', data: { cells: sq.grid, caption: 'No key: everyone knows this square' } },
+    });
+  }
+  steps.push({
     title: decrypting ? 'Split the ciphertext into pairs' : 'Split the message into pairs',
     explanation: decrypting
       ? 'Ciphertext is read two letters at a time.'
-      : 'Letters are taken two at a time. J becomes I, a filler X is inserted between doubled letters in a pair (e.g. "EE" → "EX E…"), and an X pads an odd final letter.',
+      : 'Letters are taken two at a time. J becomes I, a filler X is inserted between doubled letters in a pair (e.g. "EE" → "EX E…"), and an X pads an odd final letter. If the doubled or final letter is itself X, the filler is Q instead (e.g. "XX" → "XQ XQ").',
     visual: { type: 'textRows', data: { rows: [{ label: 'Pairs', cells: pairCells(pairs) }] } },
-  }];
+  });
   results.slice(0, MAX_PAIR_STEPS).forEach((r, i) => {
     const [a, b] = pairs[i];
     steps.push({
@@ -90,7 +98,9 @@ function run({ text, key }, decrypting) {
   steps.push({
     title: 'Result',
     explanation: (results.length > MAX_PAIR_STEPS ? `The first ${MAX_PAIR_STEPS} pairs were shown; the rest follow the same three rules. ` : '')
-      + (decrypting ? 'Remove the filler X letters that do not make sense to read the original message.' : 'Encrypting pairs instead of single letters hides single-letter frequencies, which made Playfair much stronger than Caesar in its time.'),
+      + (decrypting
+        ? 'Remove the filler X (or Q) letters that do not make sense to read the original message. Any J in the original comes back as I, because I and J share a cell.'
+        : 'Encrypting pairs instead of single letters hides single-letter frequencies, which made Playfair much stronger than Caesar in its time. It can still be broken by digraph (letter-pair) frequency analysis on longer messages, e.g. "TH" and "HE" are very common in English.'),
     visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: pairCells(pairs) }, { label: 'Out', cells: results.map((x) => x.out.join('')) }] } },
   });
   return { output, steps };
