@@ -9,8 +9,9 @@ const isBits = (g) => g && g.items.length && g.items.every((it) => /^[01]+$/.tes
 
 export default {
   type: 'bits',
-  render(d) {
+  render(d, step, ctx = {}) {
     const groups = d.groups;
+    const decoding = ctx.action === 'decode'; // same groups both ways; only the wording changes
     let padFrom = -1, padGroup = -1;
     for (let gi = 1; gi < groups.length; gi++) {
       if (!isBits(groups[gi - 1]) || !isBits(groups[gi])) continue;
@@ -25,7 +26,7 @@ export default {
         if (gi === padGroup && offset + it.top.length > padFrom) {
           top = [...it.top].map((b, k) => {
             if (offset + k < padFrom) return b;
-            const s = h('span', { class: 'bit-pad', title: 'zero bit added as padding' }, b);
+            const s = h('span', { class: 'bit-pad', title: decoding ? 'zero padding bit, dropped when decoding' : 'zero bit added as padding' }, b);
             padBits.push(s);
             return s;
           });
@@ -39,10 +40,14 @@ export default {
       const notes = [];
       if (gi === padGroup) {
         const n = offset - padFrom;
-        notes.push(h('p', { class: 'pad-note' }, h('span', { class: 'bit-pad' }, '0'), ` +${n} zero bit${n > 1 ? 's' : ''} added to fill the last 6-bit group`));
+        notes.push(h('p', { class: 'pad-note' }, h('span', { class: 'bit-pad' }, '0'), decoding
+          ? ` ${n} zero padding bit${n > 1 ? 's' : ''}: left over after the last full byte, so dropped when decoding`
+          : ` +${n} zero bit${n > 1 ? 's' : ''} added to fill the last 6-bit group`));
       }
       const eq = g.items.filter((it) => it.top === '=').length;
-      if (eq) notes.push(h('p', { class: 'pad-note pad-note-eq' }, h('code', {}, '='.repeat(eq)), ` ${eq} padding character${eq > 1 ? 's' : ''}: the output length must be a multiple of 4`));
+      if (eq) notes.push(h('p', { class: 'pad-note pad-note-eq' }, h('code', {}, '='.repeat(eq)), decoding
+        ? ` ${eq} padding character${eq > 1 ? 's' : ''}: carry no data and are ignored when decoding`
+        : ` ${eq} padding character${eq > 1 ? 's' : ''}: the output length must be a multiple of 4`));
       return [
         gi ? h('div', { class: 'bits-arrow' }, '↓') : null,
         h('div', { class: 'bits-group' }, h('div', { class: 'bits-label' }, g.label), h('div', { class: 'bits-items' }, items), notes),
