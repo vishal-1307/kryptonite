@@ -71,7 +71,7 @@ export default {
   id: 'sha256',
   name: 'SHA-256',
   category: 'Hashing',
-  description: 'A one-way hash function: any input becomes a fixed 256-bit fingerprint. Used for passwords, blockchains and file integrity.',
+  description: 'A one-way hash function: any input becomes a fixed 256-bit fingerprint. Used for file integrity, digital signatures and blockchains. (Passwords need a salted, slow function such as bcrypt or Argon2.)',
   ioField: 'text',
   inputs: [{ id: 'text', label: 'Message', type: 'textarea', default: 'abc' }],
   actions: [{ id: 'hash', label: 'Hash' }],
@@ -87,7 +87,7 @@ export default {
       visual: { type: 'hexDump', data: { bytes, segments: [{ from: 0, to: L, tone: 'msg', label: 'message' }], chars: true } },
     }, {
       title: 'Padding',
-      explanation: `SHA-256 processes 512-bit (64-byte) blocks. Append one 1-bit (byte 80), then zeros, then the original length (${L * 8} bits) as a 64-bit number, so the total is a multiple of 64 bytes. Result: ${padded.length / 64} block${padded.length > 64 ? 's' : ''}.`,
+      explanation: `SHA-256 processes 512-bit (64-byte) blocks. Append a single 1-bit (the byte 0x80 = binary 10000000), then zero bytes, then the original length (${L * 8} bits) as a 64-bit number, so the total is a multiple of 64 bytes. Result: ${padded.length / 64} block${padded.length > 64 ? 's' : ''}.`,
       visual: { type: 'hexDump', data: { bytes: padded, segments: [
         { from: 0, to: L, tone: 'msg', label: 'message' },
         { from: L, to: L + 1, tone: 'one', label: '1-bit (0x80)' },
@@ -112,7 +112,7 @@ export default {
       });
       steps.push({
         title: `Compression round 0${tag}`,
-        explanation: 'Each round computes two temporary words and shifts the eight working variables a…h down by one. Σ are rotations, Ch picks bits from f or g depending on e, Maj takes the majority bit of a, b, c, and Kₜ is a round constant.',
+        explanation: 'Each round computes two temporary words and shifts the eight working variables a…h down by one. Σ are rotations, Ch picks bits from f or g depending on e, Maj takes the majority bit of a, b, c, and Kₜ is a round constant (the first 32 bits of the fractional part of the cube root of the t-th prime).',
         visual: { type: 'math', data: { lines: [
           { expr: 'T1 = h + Σ1(e) + Ch(e,f,g) + K0 + W0', note: `= ${w32(r0.T1)}` },
           { expr: 'T2 = Σ0(a) + Maj(a,b,c)', note: `= ${w32(r0.T2)}` },
@@ -143,6 +143,23 @@ export default {
       title: 'Avalanche effect',
       explanation: `Flipping just one bit of the input (${bytes.length ? `last byte ${toHex(bytes[bytes.length - 1])} → ${toHex(altBytes[altBytes.length - 1])}` : 'adding byte 01'}) changes ${bitDiff(digest, alt)} of the 256 output bits — about half, as a good hash should.`,
       visual: [{ type: 'digest', data: { label: 'Original', hex: digest } }, { type: 'digest', data: { label: '1 bit changed', hex: alt, compare: digest } }],
+    });
+    steps.push({
+      title: 'Security notes',
+      explanation: 'A cryptographic hash must resist three attacks. It is used for file integrity, digital signatures and blockchains. It is NOT enough on its own for passwords (use a salted, deliberately slow function such as bcrypt, scrypt or Argon2) or for message authentication (use HMAC, because SHA-256(key ‖ message) is vulnerable to length-extension attacks).',
+      visual: [
+        { type: 'table', data: { headers: ['Property', 'Meaning', 'SHA-256'], rows: [
+          ['Preimage resistance', 'Given a hash, you cannot find any input for it', '✓ (~2²⁵⁶ work)'],
+          ['Second-preimage resistance', 'Given one input, you cannot find another with the same hash', '✓ (~2²⁵⁶ work)'],
+          ['Collision resistance', 'You cannot find ANY two inputs with the same hash', '✓ (~2¹²⁸ work, birthday bound)'],
+        ] } },
+        { type: 'table', data: { headers: ['Use case', 'Right tool'], rows: [
+          ['File integrity / signatures', 'SHA-256, SHA-3'],
+          ['Storing passwords', 'bcrypt, scrypt, Argon2 (salted + slow)'],
+          ['Message authentication with a key', 'HMAC-SHA-256 (not SHA-256(key ‖ msg))'],
+          ['Avoid', 'MD5 and SHA-1: practical collisions are known'],
+        ], highlightRows: [1, 2] } },
+      ],
     });
     return { output: digest, outputLabel: 'SHA-256 digest (hex)', steps };
   },
