@@ -56,7 +56,7 @@ function run({ text, key }, decrypting) {
   });
   steps.push({
     title: 'Result',
-    explanation: 'Because the shift keeps changing, the same plain letter can become different cipher letters. That defeats simple frequency analysis, although the repeating key can still be attacked (Kasiski examination).',
+    explanation: 'Because the shift keeps changing, the same plain letter can become different cipher letters. That defeats simple frequency analysis, although the repeating key can still be attacked: repeated fragments in the ciphertext reveal the key length (Kasiski examination), and then each column is just a Caesar cipher. If the key were truly random, used once, and as long as the message, this would become a one-time pad, which is unbreakable.',
     visual: { type: 'textRows', data: { rows: [
       { label: inLabel, cells: chars }, { label: 'Key', cells: keyRow }, { label: outLabel, cells: outChars },
     ] } },
