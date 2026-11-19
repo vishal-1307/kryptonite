@@ -257,15 +257,31 @@ kbd { font-family: var(--mono); font-size: .8em; font-weight: 600; padding: .1re
 figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weight: 600; text-align: center; }
 
 /* rail fence */
-.v-railfence { margin: 0; max-width: 100%; overflow-x: auto; }
-.rf-wrap { display: flex; gap: .5rem; }
-.rf-labels { display: grid; color: var(--muted); font-weight: 600; align-items: center; white-space: nowrap; }
-.rf-labels span { font-size: .7rem; }
-.rf-grid { display: grid; gap: 0; position: relative; }
+.v-railfence { margin: 0; width: max-content; max-width: 100%; min-width: 0; overflow: hidden; --rf-min-cell: 20px; }
+/* Shrinks to fit, but never below ~20px cells / 12px letters. If it still overflows, this box scrolls — not the page. */
+.rf-scroll { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain;
+  /* Edge fades: visible only when there is overflow to scroll into. No animation, so Motion off is unchanged. */
+  background:
+    linear-gradient(to right, var(--bg) 25%, transparent) left center / 1.75rem 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 25%, transparent) right center / 1.75rem 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--text) 22%, transparent), transparent) left center / 0.9rem 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--text) 22%, transparent), transparent) right center / 0.9rem 100% no-repeat scroll; }
+.rf-wrap { display: flex; gap: .5rem; align-items: start; box-sizing: border-box; width: 100%; }
+.rf-labels { display: grid; grid-template-rows: repeat(var(--rf-rails, 3), minmax(0, 1fr)); color: var(--muted); font-weight: 600; align-items: center; white-space: nowrap; flex: 0 0 auto; position: sticky; left: 0; z-index: 1; background: var(--bg); padding-right: .25rem; }
+.rf-labels span { font-size: .7rem; line-height: 1; }
+.rf-grid { display: grid; gap: 0; position: relative; flex: 1 1 auto; container-type: inline-size;
+  grid-template-columns: repeat(var(--rf-cols, 1), minmax(var(--rf-min-cell), 2em));
+  grid-template-rows: repeat(var(--rf-rails, 3), minmax(var(--rf-min-cell), 2em));
+  width: calc(var(--rf-cols, 1) * 2em);
+  min-width: calc(var(--rf-cols, 1) * var(--rf-min-cell));
+  max-width: calc(var(--rf-cols, 1) * 2em);
+  height: auto;
+  aspect-ratio: var(--rf-cols, 1) / var(--rf-rails, 3); }
 .rf-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.rf-zigzag { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; opacity: .45; }
-.rf-grid .cell { position: relative; place-self: center; }
-.rf-grid .cell { width: 1.8em; height: 1.8em; min-width: 0; margin: .1em; font-size: .85rem; }
+.rf-zigzag { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .45; }
+.rf-grid .cell { position: relative; place-self: center; box-sizing: border-box;
+  width: min(1.8em, 100%); height: min(1.8em, 100%); aspect-ratio: 1; min-width: 0; min-height: 0; margin: 0; padding: 0;
+  font-size: clamp(12px, calc(100cqw / var(--rf-cols, 1) * 0.5), 0.85rem); }
 .rf-grid .cell.is-slot { background: transparent; border-style: dashed; color: var(--muted); font-weight: 400; }
 
 /* matrix */
