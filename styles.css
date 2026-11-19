@@ -436,6 +436,28 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
   .icon-btn { padding: 0 .55rem; }
   .ls-cols { gap: .15rem; }
 }
+/* Narrow screens: player buttons become icon-only (the label stays as aria-label/title) so nothing is cramped. */
+@media (max-width: 480px) {
+  .ctrl-main { gap: .35rem; }
+  .ctrl-main .ctrl .ctrl-label { display: none; }
+  .ctrl-main .ctrl, .ctrl-main .ctrl-play, .ctrl-edge { flex: 1 1 0 !important; min-width: 44px; padding: 0; }
+  .ctrl-main .ctrl-play { flex: 1.4 1 0 !important; }
+  .ctrl svg { width: 1.45em; height: 1.45em; }
+}
+/* Touch / narrow screens: every interactive control is at least 44×44 px (WCAG 2.5.5). */
+@media (pointer: coarse), (max-width: 900px) {
+  .icon-btn, .btn, .btn-sm, .ctrl, .speed, .method-switch, .segmented button, .chip, .filters .chip,
+  .step-list button, .all-steps summary, .side-home, .sidebar a, .field select, .field input { min-height: 44px; }
+  .icon-btn, .ctrl, .chip, .all-steps button, .step-list button { min-width: 44px; justify-content: center; }
+  .all-steps button { min-height: 44px; }
+  .chip { display: inline-flex; align-items: center; }
+  .segmented button, .btn-sm { padding-inline: .9rem; }
+  .step-list button { display: flex; align-items: center; }
+  .all-steps summary { display: list-item; min-height: 44px; padding-block: .75rem; line-height: 1.4; box-sizing: border-box; } /* list-item keeps the disclosure triangle */
+  .scrub, .reg-slider { min-height: 44px; }
+  .brand { min-height: 44px; }
+  .out-tools .btn { min-width: 44px; }
+}
 /* Reduced motion: tokens collapse to (almost) zero; JS animations fall back to short fades (visuals/anim.js). */
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-travel: 1ms; }
