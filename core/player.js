@@ -3,19 +3,16 @@ export class StepPlayer {
   constructor({ onChange, baseDelay = 2200 } = {}) {
     this.steps = [];
     this.index = 0;
-    this.prevIndex = -1; // index shown before the current one (-1 after load) — lets visuals animate forward vs back
     this.playing = false;
     this.speed = 1;
     this.baseDelay = baseDelay;
     this.onChange = onChange || (() => {});
     this.timer = null;
   }
-  load(steps) { this.pause(false); this.steps = steps; this.prevIndex = -1; this.index = 0; this.emit(); }
+  load(steps) { this.pause(false); this.steps = steps; this.index = 0; this.emit(); }
   get current() { return this.steps[this.index]; }
-  /** +1 when moving forward, −1 when moving back, 0 on a fresh load or re-render of the same step. */
-  get direction() { return this.prevIndex < 0 ? 0 : Math.sign(this.index - this.prevIndex); }
   get atEnd() { return this.index >= this.steps.length - 1; }
-  go(i) { this.prevIndex = this.index; this.index = Math.max(0, Math.min(this.steps.length - 1, i)); this.emit(); }
+  go(i) { this.index = Math.max(0, Math.min(this.steps.length - 1, i)); this.emit(); }
   next() { if (!this.atEnd) this.go(this.index + 1); else this.pause(); }
   prev() { this.go(this.index - 1); }
   first() { this.go(0); }

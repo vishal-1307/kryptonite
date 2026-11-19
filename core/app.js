@@ -124,9 +124,8 @@ function renderMethod(method, actionId) {
   const firstBtn = btn('first', 'First step (Home)', () => player.first(), 'ctrl-edge');
   const lastBtn = btn('last', 'Last step (End)', () => player.last(), 'ctrl-edge');
   const scrub = h('input', { type: 'range', min: 0, max: 0, value: 0, class: 'scrub', 'aria-label': 'Step', oninput: (e) => player.go(Number(e.target.value)) });
-  const savedSpeed = Number(prefs.get('speed', '1')) || 1;
-  const speed = h('select', { class: 'speed', id: 'speed', onchange: (e) => { const x = Number(e.target.value); prefs.set('speed', x); anim.setSpeed(x); player.setSpeed(x); } },
-    [0.5, 1, 1.5, 2, 4].map((x) => h('option', { value: x, selected: x === savedSpeed }, `${x}×`)));
+  const speed = h('select', { class: 'speed', id: 'speed', onchange: (e) => { anim.setSpeed(Number(e.target.value)); player.setSpeed(Number(e.target.value)); } },
+    [0.5, 1, 1.5, 2, 4].map((x) => h('option', { value: x, selected: x === 1 }, `${x}×`)));
   const kbd = (k) => h('kbd', {}, k);
   const legend = h('p', { class: 'kbd-legend' },
     h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play / pause'),
@@ -164,8 +163,9 @@ function renderMethod(method, actionId) {
   // --- player wiring
   let nodes = []; // [{type, el}] for in-place updates (smooth animations)
   if (player) player.pause(false);
-  anim.setSpeed(savedSpeed);
+  anim.setSpeed(1);
   let shown = null; // the step object currently on stage (so play/pause/speed changes don't re-animate it)
+  let shownIndex = -1, shownList = null;
   player = new StepPlayer({ onChange: (p) => {
     const step = p.current;
     const n = p.steps.length;
@@ -182,12 +182,12 @@ function renderMethod(method, actionId) {
     progress.firstChild.style.width = n > 1 ? `${(p.index / (n - 1)) * 100}%` : '100%';
     [...stepList.children].forEach((li, i) => li.classList.toggle('is-current', i === p.index));
     if (step !== shown) {
-      shown = step;
-      renderStage(step, { direction: p.direction });
+      const direction = shownList === p.steps ? Math.sign(p.index - shownIndex) : 0; // +1 forward, −1 back, 0 fresh run
+      shown = step; shownIndex = p.index; shownList = p.steps;
+      renderStage(step, { direction });
       live.textContent = step ? `Step ${p.index + 1} of ${n}: ${step.title}. ${step.explanation}` : '';
     }
   } });
-  player.speed = savedSpeed;
 
   function renderStage(step, ctx = {}) {
     anim.settle(); // finish the previous step's animations instantly so rapid clicks never pile up

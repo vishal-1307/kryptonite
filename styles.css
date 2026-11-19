@@ -179,6 +179,12 @@ kbd { font-family: var(--mono); font-size: .8em; font-weight: 600; padding: .1re
 .cell { display: inline-grid; place-items: center; min-width: 2em; height: 2em; padding: 0 .25em; border-radius: 7px; background: var(--card); border: 1px solid var(--border); font-family: var(--mono); font-weight: 600; font-size: .95rem; transition: background .25s, color .25s, transform .25s; }
 .cell.is-hl, .is-active > .cell { background: var(--accent); color: #fff; border-color: var(--accent); animation: pop .35s ease; }
 .dark .cell.is-hl, .dark .is-active > .cell { color: #0e1014; }
+/* Dark mode: letter boxes need to stand out from the stage (QA: plain-letter row was grey-on-dark). */
+.dark :where(.cell) { background: #252a36; border-color: #474e5f; color: #f4f4f5; }
+.dark :where(.cell.is-empty) { background: transparent; border-color: #3a4050; }
+.dark :where(.ls-col .cell-out) { background: #1b2a3a; border-color: #3b5573; color: #dbeafe; }
+.dark :where(.wheel-outer .dot) { fill: #2b3140; }
+.large.dark :where(.cell) { border-color: #6b7280; }
 .cell.is-out { background: var(--ok); color: #fff; border-color: var(--ok); animation: pop .35s ease; }
 .cell.is-empty { border-style: dashed; background: transparent; }
 @keyframes pop { 0% { transform: scale(.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
@@ -207,6 +213,15 @@ kbd { font-family: var(--mono); font-size: .8em; font-weight: 600; padding: .1re
 .wheel-inner .is-active .dot { fill: var(--ok); }
 .wheel-svg .is-active text { fill: #fff; }
 .wheel-label { font-size: 15px !important; fill: var(--muted) !important; font-family: var(--sans) !important; }
+.wheel-svg { overflow: visible; }
+.wheel-svg .is-target .dot { fill: var(--ok); }
+.wheel-travel { pointer-events: none; }
+.travel-token { transform-box: view-box; transform-origin: 150px 150px; }
+.travel-upright { transform-box: view-box; transform-origin: 0 0; }
+.travel-token circle { fill: var(--ok); stroke: var(--card); stroke-width: 3; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)); }
+.wheel-svg .travel-token text { fill: #fff; font-size: 15px; }
+.travel-trail { fill: none; stroke: var(--ok); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; opacity: .8; }
+.wheel-svg .travel-count { font-size: 13px; fill: var(--ok-text, var(--ok)); font-family: var(--sans); font-weight: 700; }
 
 /* textRows */
 .v-textrows { display: flex; gap: .5rem; max-width: 100%; }
