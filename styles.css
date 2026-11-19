@@ -315,6 +315,29 @@ figcaption { margin-top: .5rem; font-size: .8rem; color: var(--muted); font-weig
 .t-zero { color: var(--muted); }
 .t-zero.hd-key { background: var(--cell); }
 .t-len { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.hd-blocks { background: var(--cell); color: var(--text); font-weight: 600; }
+/* SHA-256 schedule + register */
+.v-schedule { width: 100%; display: flex; flex-direction: column; gap: .5rem; }
+.sched-legend { display: flex; flex-wrap: wrap; gap: .4rem .8rem; margin: 0; }
+.lg { padding: .1rem .5rem; border-radius: 6px; }
+.lg-block, .v-table td.w-block { background: var(--accent-soft); color: var(--accent-text); }
+.lg-derived { background: var(--ok-soft); color: var(--ok-text, var(--ok)); }
+.v-rounds { width: 100%; display: flex; flex-direction: column; gap: .8rem; }
+.v-register { display: flex; flex-direction: column; gap: .5rem; padding: .8rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.reg-head { display: flex; flex-wrap: wrap; gap: .2rem .8rem; align-items: baseline; }
+.reg-stack { display: grid; }
+.reg-frame { grid-area: 1 / 1; opacity: 0; display: flex; flex-direction: column; gap: .35rem; }
+.reg-frame.is-live { opacity: 1; }
+.reg-t { font-size: .8rem; font-weight: 600; color: var(--muted); }
+.reg-cells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .3rem; }
+.reg-cell { display: flex; flex-direction: column; align-items: center; padding: .3rem .2rem; border-radius: 8px; border: 1px solid var(--border); background: var(--cell); min-width: 0; }
+.reg-cell code { font-size: .82rem; font-weight: 600; }
+.reg-cell small { font-size: .68rem; color: var(--muted); }
+.reg-name { font-weight: 700; color: var(--accent-text); }
+.reg-cell.is-new { background: var(--ok-soft); border-color: var(--ok); }
+.reg-slide-wrap { display: flex; align-items: center; gap: .6rem; }
+.reg-slider { flex: 1; accent-color: var(--accent); }
+@media (max-width: 760px) { .reg-cells { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* math */
 .v-math { display: flex; flex-direction: column; gap: .35rem; min-width: min(100%, 320px); }
