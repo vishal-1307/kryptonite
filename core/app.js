@@ -16,6 +16,18 @@ function grouped() {
   return cats.map((c) => [c, methods.filter((m) => m.category === c)]).filter(([, list]) => list.length);
 }
 const catSlug = (c) => c.toLowerCase().replace(/[^a-z]+/g, '-');
+// Teacher-facing groups (registry categories stay as they are; unknown categories get their own group).
+const GROUPS = [
+  ['Classical ciphers', ['Classical']],
+  ['Modern cryptography', ['Symmetric', 'Asymmetric', 'Key Exchange']],
+  ['Hashing & encoding', ['Hashing', 'Encoding']],
+];
+function groups() {
+  const known = new Set(GROUPS.flatMap(([, c]) => c));
+  const extra = grouped().filter(([c]) => !known.has(c)).map(([c, list]) => [c, list]);
+  return [...GROUPS.map(([name, cats]) => [name, methods.filter((m) => cats.includes(m.category))]), ...extra].filter(([, list]) => list.length);
+}
+const firstSentence = (t) => (t.match(/^.*?[.!?](?=\s|$)/) || [t])[0];
 
 // ------------------------------------------------------------ preferences
 const prefs = {
@@ -23,21 +35,28 @@ const prefs = {
   set(k, v) { try { localStorage.setItem(`cv-${k}`, v); } catch { /* private mode */ } },
 };
 function applyPrefs() {
-  const dark = prefs.get('theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') === 'dark';
+  // Light is the default; dark only when the user picked it (the OS preference is deliberately ignored).
+  const dark = prefs.get('theme', 'light') === 'dark';
   document.documentElement.classList.toggle('dark', dark);
   document.documentElement.classList.toggle('large', prefs.get('large', '0') === '1');
-  $('#theme-toggle').setAttribute('aria-pressed', dark);
+  const tt = $('#theme-toggle');
+  tt.removeAttribute('aria-pressed');
+  tt.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  tt.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  tt.querySelector('.theme-label').textContent = dark ? 'Light' : 'Dark';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = dark ? '#000000' : '#ffffff';
   $('#large-toggle').setAttribute('aria-pressed', prefs.get('large', '0') === '1');
 }
 $('#theme-toggle').addEventListener('click', () => { prefs.set('theme', document.documentElement.classList.contains('dark') ? 'light' : 'dark'); applyPrefs(); });
 // Presentation mode (big text + high contrast for projectors). Toggle with the top-bar button or the P key.
 function togglePresentation() { prefs.set('large', prefs.get('large', '0') === '1' ? '0' : '1'); applyPrefs(); }
 $('#large-toggle').addEventListener('click', togglePresentation);
-$('#large-toggle').title = 'Presentation mode: big text, high contrast (P)';
+$('#large-toggle').title = 'Projector mode: big text, high contrast (P)';
 
 // Reduce-motion toggle (stored in localStorage; combined with the OS prefers-reduced-motion setting).
-const motionBtn = h('button', { id: 'motion-toggle', class: 'icon-btn', type: 'button', title: 'Reduce motion (M)', 'aria-label': 'Reduce motion', 'aria-pressed': 'false',
-  html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span class="icon-label">Motion</span>' });
+const motionBtn = h('button', { id: 'motion-toggle', class: 'icon-btn', type: 'button', title: 'Turn animations off (M)', 'aria-label': 'Reduce motion', 'aria-pressed': 'false',
+  html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span class="icon-label">Motion</span>' });
 $('.top-actions').prepend(motionBtn);
 function applyMotion() {
   const on = prefs.get('motion', 'auto') === 'reduce';
@@ -45,6 +64,7 @@ function applyMotion() {
   document.documentElement.classList.toggle('reduce-motion', on);
   motionBtn.setAttribute('aria-pressed', on);
   motionBtn.querySelector('.icon-label').textContent = on ? 'Motion off' : 'Motion';
+  motionBtn.title = on ? 'Turn animations back on (M)' : 'Turn animations off (M)';
 }
 function toggleMotion() { prefs.set('motion', prefs.get('motion', 'auto') === 'reduce' ? 'auto' : 'reduce'); applyMotion(); }
 motionBtn.addEventListener('click', toggleMotion);
@@ -55,36 +75,30 @@ applyPrefs();
 const main = $('#main');
 
 function renderHome() {
-  document.title = 'Kryptonite — see cryptography step by step';
-  const all = grouped().flatMap(([, list]) => list);
-  const cats = ['All', ...grouped().map(([c]) => c)];
-  const cards = h('div', { class: 'cards' }, all.map((m) => h('a', { class: `card method-card cat-${catSlug(m.category)}`, href: `#/${m.id}`, 'data-cat': m.category },
-    h('span', { class: 'badge' }, m.category),
-    h('h3', {}, m.name),
-    h('p', {}, m.description),
-    h('span', { class: 'open' }, 'Open →'))));
-  const filterBar = h('div', { class: 'filters', role: 'toolbar', 'aria-label': 'Filter by category' }, cats.map((c) => h('button', { type: 'button', class: 'chip', 'data-cat': c, onclick: () => setFilter(c) }, c)));
-  function setFilter(c) {
-    filterBar.querySelectorAll('.chip').forEach((b) => b.classList.toggle('is-active', b.dataset.cat === c));
-    cards.querySelectorAll('.method-card').forEach((el) => { el.hidden = c !== 'All' && el.dataset.cat !== c; });
-  }
+  document.title = 'Kryptonite — see how ciphers work, step by step';
+  setCrumb(null);
   main.className = 'view-home';
   main.replaceChildren(
-    h('section', { class: 'hero' },
-      h('p', { class: 'eyebrow' }, 'Kryptonite · by Team Kryptonite'),
-      h('h1', {}, 'See cryptography happen, step by step.'),
-      h('p', { class: 'lead' }, `${methods.length} methods in one place. Pick one, type your own message and key, and watch every step with an explanation.`),
-      h('ol', { class: 'how' }, ['Pick a method', 'Enter text & key', 'Play the steps'].map((t, i) => h('li', {}, h('span', {}, i + 1), t)))),
-    filterBar,
-    cards,
+    h('section', { class: 'home-head' },
+      h('h1', {}, 'Choose a method'),
+      h('p', { class: 'lead' }, 'Type a message and a key, press Run, then step through what the method does.')),
+    ...groups().map(([name, list]) => h('section', { class: 'group', 'aria-labelledby': `g-${catSlug(name)}` },
+      h('h2', { class: 'group-title', id: `g-${catSlug(name)}` }, name),
+      h('ul', { class: 'method-list' }, list.map((m) => h('li', {},
+        h('a', { class: 'method-row', href: `#/${m.id}` },
+          h('span', { class: 'mr-name' }, m.name),
+          h('span', { class: 'mr-desc' }, firstSentence(m.description)),
+          new Set(list.map((x) => x.category)).size > 1 ? h('span', { class: 'mr-cat' }, m.category) : null,
+          arrowIcon())))))),
   );
-  setFilter('All');
 }
+const arrowIcon = () => { const t = document.createElement('template'); t.innerHTML = '<svg class="mr-go" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'; return t.content.firstChild; };
+function setCrumb(text) { const c = $('#crumb'); c.hidden = !text; c.textContent = text || ''; }
 
 function sidebar(active) {
   return h('nav', { class: 'sidebar', 'aria-label': 'Methods' },
     h('a', { class: 'side-home', href: '#/' }, '← All methods'),
-    grouped().map(([cat, list]) => h('div', { class: 'side-group' },
+    groups().map(([cat, list]) => h('div', { class: 'side-group' },
       h('div', { class: 'side-cat' }, cat),
       list.map((m) => h('a', { href: `#/${m.id}`, class: m.id === active ? 'is-active' : '', 'aria-current': m.id === active ? 'page' : null }, m.name)))));
 }
@@ -102,6 +116,7 @@ const ICONS = {
 let player = null;
 function renderMethod(method, actionId) {
   document.title = `${method.name} · Kryptonite`;
+  setCrumb(method.name);
   main.className = 'view-method';
   const actions = getActions(method);
   let action = actions.find((a) => a.id === actionId) || actions[0];
@@ -109,21 +124,21 @@ function renderMethod(method, actionId) {
   // --- input card
   const formErr = h('div', { class: 'form-error' }); // announced via the stage's role=alert panel (avoids double announcements)
   const form = buildForm(method, { onInput: () => scheduleRun() });
-  const actionBar = h('div', { class: 'segmented', role: 'tablist' }, actions.map((a) => h('button', {
+  const actionBar = h('div', { class: 'segmented mode-switch', role: 'tablist', 'aria-label': 'What to do', hidden: actions.length < 2 }, actions.map((a) => h('button', {
     type: 'button', role: 'tab', 'data-action': a.id, onclick: () => setAction(a.id, true),
   }, a.label)));
-  const examples = method.examples ? h('div', { class: 'examples' }, h('span', { class: 'muted small' }, 'Examples:'), method.examples.map((ex) => h('button', { type: 'button', class: 'chip', onclick: () => { form.setValues(ex.values); run(); } }, ex.label))) : null;
-  const runBtn = h('button', { type: 'button', class: 'btn btn-primary', onclick: () => run() }, 'Run');
+  const examples = method.examples ? h('div', { class: 'examples' }, h('span', { class: 'examples-label' }, 'Try:'), method.examples.map((ex) => h('button', { type: 'button', class: 'chip', onclick: () => { form.setValues(ex.values); run(); } }, ex.label))) : null;
+  const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run', onclick: () => run(), html: `${ICONS.play}<span>Run</span>` });
   const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { form.setValues(defaultValues(method)); run(); } }, 'Reset');
 
   // --- output card
   const outLabel = h('div', { class: 'out-label' });
   const outValue = h('output', { class: 'out-value mono' });
   const copyBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async () => {
-    try { await navigator.clipboard.writeText(outValue.textContent); copyBtn.textContent = 'Copied ✓'; } catch { copyBtn.textContent = 'Copy failed'; }
+    try { await navigator.clipboard.writeText(outValue.textContent); copyBtn.textContent = 'Copied'; } catch { copyBtn.textContent = 'Copy failed'; }
     setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
   } }, 'Copy');
-  const chainBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm' });
+  const chainBtn = h('button', { type: 'button', class: 'btn btn-link' });
 
   // --- visualizer
   const stepCount = h('span', { class: 'step-count', 'aria-hidden': 'true' });
@@ -135,7 +150,7 @@ function renderMethod(method, actionId) {
     html: ICONS[icon] + (label ? `<span class="ctrl-label">${label}</span>` : '') });
   const playBtn = btn('play', 'Play / pause (Space)', () => player.toggle(), 'ctrl-play', 'Play');
   const prevBtn = btn('prev', 'Previous step (←)', () => player.prev(), 'ctrl-step', 'Back');
-  const nextBtn = btn('next', 'Next step (→)', () => player.next(), 'ctrl-step', 'Next');
+  const nextBtn = btn('next', 'Next step (→)', () => player.next(), 'ctrl-step ctrl-next', 'Next');
   const firstBtn = btn('first', 'First step (Home)', () => player.first(), 'ctrl-edge');
   const lastBtn = btn('last', 'Last step (End)', () => player.last(), 'ctrl-edge');
   const scrub = h('input', { type: 'range', min: 0, max: 0, value: 0, class: 'scrub', 'aria-label': 'Step', oninput: (e) => player.go(Number(e.target.value)) });
@@ -143,8 +158,8 @@ function renderMethod(method, actionId) {
     [0.5, 1, 1.5, 2, 4].map((x) => h('option', { value: x, selected: x === 1 }, `${x}×`)));
   const kbd = (k) => h('kbd', {}, k);
   const legend = h('p', { class: 'kbd-legend' },
-    h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play / pause'),
-    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' presentation mode'), h('span', {}, kbd('M'), ' reduce motion'));
+    h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play'),
+    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' projector'), h('span', {}, kbd('M'), ' motion'));
   const stepList = h('ol', { class: 'step-list' });
   const progress = h('div', { class: 'progress' }, h('span'));
 
@@ -152,27 +167,33 @@ function renderMethod(method, actionId) {
     sidebar(method.id),
     h('div', { class: 'content' },
       h('header', { class: 'method-head' },
-        h('div', {},
-          h('span', { class: `badge cat-${catSlug(method.category)}` }, method.category),
+        h('div', { class: 'mh-text' },
+          h('p', { class: 'mh-cat' }, method.category),
           h('h1', {}, method.name),
           h('p', { class: 'lead' }, method.description)),
-        h('select', { class: 'method-switch', 'aria-label': 'Switch method', onchange: (e) => { location.hash = `#/${e.target.value}`; } },
-          grouped().map(([cat, list]) => h('optgroup', { label: cat }, list.map((m) => h('option', { value: m.id, selected: m.id === method.id }, m.name)))))),
-      h('div', { class: 'io' },
-        h('section', { class: 'card io-in' }, h('div', { class: 'card-head' }, h('h2', {}, 'Input'), actionBar), examples, form.el, formErr,
-          h('div', { class: 'actions' }, runBtn, resetBtn, h('span', { class: 'muted small kbd-hint' }, 'Ctrl + Enter to run'))),
-        h('section', { class: 'card io-out' }, h('div', { class: 'card-head' }, h('h2', {}, 'Output'), h('div', { class: 'out-tools' }, chainBtn, copyBtn)), outLabel, outValue)),
-      h('section', { class: 'card viz' },
+        h('label', { class: 'method-switch-wrap' }, h('span', { class: 'sr-only' }, 'Switch method'),
+          h('select', { class: 'method-switch', 'aria-label': 'Switch method', onchange: (e) => { location.hash = `#/${e.target.value}`; } },
+            groups().map(([cat, list]) => h('optgroup', { label: cat }, list.map((m) => h('option', { value: m.id, selected: m.id === method.id }, m.name))))))),
+      h('div', { class: 'io panel' },
+        h('section', { class: 'io-in', 'aria-label': 'Input' }, actionBar, examples, form.el, formErr,
+          h('div', { class: 'actions' }, runBtn, resetBtn, h('span', { class: 'kbd-hint' }, kbd('Ctrl'), '+', kbd('Enter')))),
+        h('section', { class: 'io-out', 'aria-label': 'Output' },
+          h('div', { class: 'out-head' }, outLabel, h('div', { class: 'out-tools' }, copyBtn)),
+          outValue, chainBtn)),
+      h('section', { class: 'viz', 'aria-label': 'Steps' },
         h('div', { class: 'viz-head' }, stepCount, stepTitle),
         progress,
         stage,
         explain,
         h('div', { class: 'controls', role: 'toolbar', 'aria-label': 'Step controls' },
           h('div', { class: 'ctrl-main' }, firstBtn, prevBtn, playBtn, nextBtn, lastBtn),
-          h('label', { class: 'speed-wrap', for: 'speed' }, h('span', {}, 'Speed'), speed),
-          scrub),
-        legend, live,
-        h('details', { class: 'all-steps' }, h('summary', {}, 'All steps'), stepList))),
+          h('div', { class: 'ctrl-aux' },
+            h('label', { class: 'speed-wrap', for: 'speed' }, h('span', {}, 'Speed'), speed),
+            scrub)),
+        h('div', { class: 'viz-foot' },
+          h('details', { class: 'all-steps' }, h('summary', {}, 'All steps'), stepList),
+          legend),
+        live)),
   );
 
   // --- player wiring
@@ -184,7 +205,7 @@ function renderMethod(method, actionId) {
   player = new StepPlayer({ onChange: (p) => {
     const step = p.current;
     const n = p.steps.length;
-    stepCount.replaceChildren(...(n ? ['Step ', h('b', {}, String(p.index + 1)), ` of ${n}`] : []));
+    stepCount.replaceChildren(...(n ? ['Step ', h('b', {}, String(p.index + 1)), ` / ${n}`] : []));
     stepTitle.textContent = step ? step.title : '';
     renderExplanation(step ? step.explanation : '');
     playBtn.innerHTML = (p.playing ? ICONS.pause : ICONS.play) + `<span class="ctrl-label">${p.playing ? 'Pause' : 'Play'}</span>`;
@@ -258,7 +279,7 @@ function renderMethod(method, actionId) {
     form.setAction(action.id);
     const inv = action.inverse && actions.find((a) => a.id === action.inverse);
     chainBtn.hidden = !(inv && method.ioField);
-    if (inv) chainBtn.textContent = `Use output → ${inv.label}`;
+    if (inv) chainBtn.textContent = `${inv.label} this result →`;
     history.replaceState(null, '', `#/${method.id}${action.id !== actions[0].id ? `?a=${action.id}` : ''}`);
     if (rerun) run();
   }
