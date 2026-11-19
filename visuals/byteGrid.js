@@ -62,15 +62,17 @@ export default {
     const el = h('div', { class: `bg-wrap${op ? ` op-${op}` : ''}` }, row);
 
     // Readout (lookup / XOR) — one line per byte stacked in the same grid cell; only the pinned one is visible at rest.
-    let lines = null, pin = () => {};
+    let lines = null, pin = () => {}, showPin = () => {}, current = 0;
     if (op && (lookup || op === 'AddRoundKey') && first && outItem) {
       lines = COLMAJOR.map((i) => readoutLine(op, i, first.bytes, outItem.bytes, keyItem ? keyItem.bytes : []));
       const box = h('div', { class: 'bg-readout', 'aria-live': 'off' }, lines);
       el.append(box, h('p', { class: 'bg-tip muted small' }, 'Tip: click a byte to see its ' + (lookup ? 'S-box lookup.' : 'XOR.')));
-      pin = (i) => {
+      // showPin(-1) hides the resting focus/readout (used while the sweep runs); pin(i) also remembers the choice.
+      showPin = (i) => {
         lines.forEach((l, k) => l.classList.toggle('is-pinned', k === i));
         for (const cells of refs.values()) cells.forEach((c, k) => c.classList.toggle('is-focus', k === i));
       };
+      pin = (i) => { current = i; showPin(i); };
       pin(0);
       row.addEventListener('click', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) pin(Number(c.dataset.i)); });
       row.addEventListener('mouseover', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) pin(Number(c.dataset.i)); });
@@ -98,17 +100,26 @@ export default {
             { duration: 900, easing: EASE.inOut, reduce: 'none' });
           start = 350;
         }
+        // Sweep: byte k's highlight (Before and After cell) and its readout line share one time window, so a frame
+        // paused at any moment shows the readout of exactly the byte that is highlighted. The resting pin is hidden
+        // during the sweep and comes back when it ends (or when settle() finishes it).
         const slot = Math.min(60, 900 / 16);
+        const on = { boxShadow: '0 0 0 3px var(--accent)' }, off = { boxShadow: '0 0 0 0 transparent' };
+        const sweep = [];
         COLMAJOR.forEach((i, k) => {
           const t = start + k * slot;
-          animate(bCells[i], [{ boxShadow: '0 0 0 3px var(--accent)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: slot * 2.5, delay: t, reduce: 'none', fill: 'none' });
+          const win = { duration: slot, delay: t, easing: 'linear', reduce: 'none', fill: 'none' };
+          sweep.push(
+            animate(bCells[i], [on, { ...on, offset: 0.999 }, off], win),
+            animate(aCells[i], [on, { ...on, offset: 0.999 }, off], win),
+            animate(lines[i], [{ opacity: 1 }, { opacity: 1, offset: 0.999 }, { opacity: 0 }], win));
           animate(aCells[i], flipIn, { duration: 220, delay: t + slot * 0.6 });
-          if (!lines[i].classList.contains('is-pinned')) {
-            animate(lines[i], [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }], { duration: slot * 1.6, delay: t, reduce: 'none', fill: 'none' });
-          }
         });
-        const pinned = lines.find((l) => l.classList.contains('is-pinned'));
-        animate(pinned, [{ opacity: 0 }, { opacity: 0, offset: 0.95 }, { opacity: 1 }], { duration: start + 16 * slot + 80, reduce: 'none' });
+        const live = sweep.filter(Boolean);
+        if (live.length) {
+          showPin(-1);
+          Promise.all(live.map((a) => a.finished)).then(() => showPin(current), () => showPin(current));
+        }
       } else if (op === 'ShiftRows' || op === 'InvShiftRows') {
         const pitch = aCells[4].getBoundingClientRect().left - aCells[0].getBoundingClientRect().left; // one column
         const dir = op === 'ShiftRows' ? 1 : -1; // left shift → bytes arrive from the right
