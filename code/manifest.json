@@ -1,0 +1,744 @@
+{
+  "caesar": {
+    "folder": "caesar",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "caesar/caesar.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 caesar.py",
+      "usage": "python3 caesar.py encrypt|decrypt \"text\" shift",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "Attack at dawn",
+        "shift": 3
+      },
+      "expectedOutput": "Dwwdfn dw gdzq",
+      "notes": [
+        {
+          "fn": "shift_char",
+          "what": "Shifts one A–Z/a–z letter by k places with wrap-around; other characters unchanged"
+        },
+        {
+          "fn": "shift_text",
+          "what": "Applies shift_char to every character"
+        },
+        {
+          "fn": "encrypt",
+          "what": "E(x) = (x + k) mod 26"
+        },
+        {
+          "fn": "decrypt",
+          "what": "D(x) = (x − k) mod 26"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "caesar/caesar.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 caesar.cpp -o caesar && ./caesar",
+      "usage": "./caesar encrypt|decrypt \"text\" shift",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "Attack at dawn",
+        "shift": 3
+      },
+      "expectedOutput": "Dwwdfn dw gdzq",
+      "notes": [
+        {
+          "fn": "shiftChar",
+          "what": "Shifts one ASCII letter by k places; other bytes unchanged"
+        },
+        {
+          "fn": "shiftText",
+          "what": "Applies shiftChar to every byte"
+        },
+        {
+          "fn": "encrypt",
+          "what": "E(x) = (x + k) mod 26"
+        },
+        {
+          "fn": "decrypt",
+          "what": "D(x) = (x − k) mod 26"
+        }
+      ]
+    }
+  },
+  "vigenere": {
+    "folder": "vigenere",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "vigenere/vigenere.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 vigenere.py",
+      "usage": "python3 vigenere.py encrypt|decrypt \"text\" key",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "ATTACK AT DAWN",
+        "key": "LEMON"
+      },
+      "expectedOutput": "LXFOPV EF RNHR",
+      "notes": [
+        {
+          "fn": "clean_key",
+          "what": "Keeps only the letters of the keyword, uppercased"
+        },
+        {
+          "fn": "vigenere",
+          "what": "Shifts each letter by the next key letter; the key position only advances on letters"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "vigenere/vigenere.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 vigenere.cpp -o vigenere && ./vigenere",
+      "usage": "./vigenere encrypt|decrypt \"text\" key",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "ATTACK AT DAWN",
+        "key": "LEMON"
+      },
+      "expectedOutput": "LXFOPV EF RNHR",
+      "notes": [
+        {
+          "fn": "cleanKey",
+          "what": "Keeps only the letters of the keyword, uppercased"
+        },
+        {
+          "fn": "vigenere",
+          "what": "Shifts each letter by the next key letter; the key position only advances on letters"
+        }
+      ]
+    }
+  },
+  "playfair": {
+    "folder": "playfair",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "playfair/playfair.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 playfair.py",
+      "usage": "python3 playfair.py encrypt|decrypt \"text\" \"key\"",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "Hide the gold in the tree stump",
+        "key": "playfair example"
+      },
+      "expectedOutput": "BMODZBXDNABEKUDMUIXMMOUVIF",
+      "notes": [
+        {
+          "fn": "key_square",
+          "what": "Builds the 5×5 square (key letters first, J merged into I)"
+        },
+        {
+          "fn": "prepare",
+          "what": "Splits the text into pairs, inserting X/Q fillers for doubled letters and odd length"
+        },
+        {
+          "fn": "transform_pair",
+          "what": "Applies the same-row, same-column or rectangle rule"
+        },
+        {
+          "fn": "encrypt",
+          "what": "Prepare, then transform each pair to the right/down"
+        },
+        {
+          "fn": "decrypt",
+          "what": "Checks even length and no equal pair, then transforms to the left/up"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "playfair/playfair.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 playfair.cpp -o playfair && ./playfair",
+      "usage": "./playfair encrypt|decrypt \"text\" \"key\"",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "Hide the gold in the tree stump",
+        "key": "playfair example"
+      },
+      "expectedOutput": "BMODZBXDNABEKUDMUIXMMOUVIF",
+      "notes": [
+        {
+          "fn": "keySquare",
+          "what": "Builds the 5×5 square (key letters first, J merged into I)"
+        },
+        {
+          "fn": "prepare",
+          "what": "Splits the text into pairs with X/Q fillers"
+        },
+        {
+          "fn": "transformPair",
+          "what": "Same-row, same-column or rectangle rule"
+        },
+        {
+          "fn": "encrypt",
+          "what": "Prepare and transform each pair"
+        },
+        {
+          "fn": "decrypt",
+          "what": "Validate and inverse-transform each pair"
+        }
+      ]
+    }
+  },
+  "railfence": {
+    "folder": "railfence",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "railfence/railfence.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 railfence.py",
+      "usage": "python3 railfence.py encrypt|decrypt \"text\" rails",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "WEAREDISCOVEREDFLEEATONCE",
+        "rails": 3
+      },
+      "expectedOutput": "WECRLTEERDSOEEFEAOCAIVDEN",
+      "notes": [
+        {
+          "fn": "zigzag",
+          "what": "Rail (row) number of every position in the zigzag"
+        },
+        {
+          "fn": "encrypt",
+          "what": "Writes the zigzag and reads rail by rail"
+        },
+        {
+          "fn": "decrypt",
+          "what": "Fills each rail with the next ciphertext characters, then reads the zigzag"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "railfence/railfence.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 railfence.cpp -o railfence && ./railfence",
+      "usage": "./railfence encrypt|decrypt \"text\" rails",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "WEAREDISCOVEREDFLEEATONCE",
+        "rails": 3
+      },
+      "expectedOutput": "WECRLTEERDSOEEFEAOCAIVDEN",
+      "notes": [
+        {
+          "fn": "splitUtf8",
+          "what": "Splits the text into Unicode characters so multi-byte characters move as one"
+        },
+        {
+          "fn": "zigzag",
+          "what": "Rail (row) number of every position"
+        },
+        {
+          "fn": "encrypt",
+          "what": "Write the zigzag, read rail by rail"
+        },
+        {
+          "fn": "decrypt",
+          "what": "Fill rails, read the zigzag"
+        }
+      ]
+    }
+  },
+  "hill": {
+    "folder": "hill",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "hill/hill.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 hill.py",
+      "usage": "python3 hill.py encrypt|decrypt \"text\" \"a b c d\" | WORD",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "HELP",
+        "key": "3 3 2 5"
+      },
+      "expectedOutput": "HIAT",
+      "notes": [
+        {
+          "fn": "parse_key",
+          "what": "Reads 4 numbers (exact for any size, reduced mod 26) or a 4-letter word"
+        },
+        {
+          "fn": "inverse_key",
+          "what": "Checks gcd(det, 26) = 1 and computes K⁻¹ = det⁻¹ · adj(K) mod 26"
+        },
+        {
+          "fn": "mul",
+          "what": "Matrix × column vector mod 26"
+        },
+        {
+          "fn": "hill",
+          "what": "Keeps A–Z, pads odd length with X, multiplies each pair"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "hill/hill.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 hill.cpp -o hill && ./hill",
+      "usage": "./hill encrypt|decrypt \"text\" \"a b c d\" | WORD",
+      "sampleInput": {
+        "action": "encrypt",
+        "text": "HELP",
+        "key": "3 3 2 5"
+      },
+      "expectedOutput": "HIAT",
+      "notes": [
+        {
+          "fn": "decimalMod26",
+          "what": "Reduces a decimal string mod 26 digit by digit (no overflow for huge keys)"
+        },
+        {
+          "fn": "parseKey",
+          "what": "Reads 4 numbers or a 4-letter word"
+        },
+        {
+          "fn": "inverseKey",
+          "what": "Checks invertibility and computes K⁻¹ mod 26"
+        },
+        {
+          "fn": "mul",
+          "what": "Matrix × vector mod 26"
+        },
+        {
+          "fn": "hill",
+          "what": "Prepares the text and multiplies each pair"
+        }
+      ]
+    }
+  },
+  "aes": {
+    "folder": "aes128",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "aes128/aes128.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 aes128.py",
+      "usage": "python3 aes128.py encrypt|decrypt block key [--format hex|text] [--key-format hex|text] [--padding zero|pkcs7]",
+      "sampleInput": {
+        "action": "encrypt",
+        "format": "hex",
+        "block": "3243f6a8885a308d313198a2e0370734",
+        "keyFormat": "hex",
+        "padding": "zero",
+        "key": "2b7e151628aed2a6abf7158809cf4f3c"
+      },
+      "expectedOutput": "3925841d02dc09fbdc118597196a0b32",
+      "notes": [
+        {
+          "fn": "key_expansion",
+          "what": "Expands the 16-byte key into 11 round keys (RotWord, SubWord, Rcon)"
+        },
+        {
+          "fn": "sub_bytes",
+          "what": "SubBytes: replaces every byte with its S-box value"
+        },
+        {
+          "fn": "shift_rows",
+          "what": "ShiftRows: rotates row r left by r"
+        },
+        {
+          "fn": "mix_columns",
+          "what": "MixColumns: multiplies each column by the fixed matrix in GF(2⁸)"
+        },
+        {
+          "fn": "add_round_key",
+          "what": "AddRoundKey: XORs the state with the round key"
+        },
+        {
+          "fn": "encrypt_block",
+          "what": "Initial AddRoundKey + 10 rounds (no MixColumns in round 10)"
+        },
+        {
+          "fn": "decrypt_block",
+          "what": "Inverse cipher with InvShiftRows, InvSubBytes, InvMixColumns"
+        },
+        {
+          "fn": "build_sbox",
+          "what": "Builds the S-box from GF(2⁸) inverses and the affine transform"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "aes128/aes128.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 aes128.cpp -o aes128 && ./aes128",
+      "usage": "./aes128 encrypt|decrypt block key [--format hex|text] [--key-format hex|text] [--padding zero|pkcs7]",
+      "sampleInput": {
+        "action": "encrypt",
+        "format": "hex",
+        "block": "3243f6a8885a308d313198a2e0370734",
+        "keyFormat": "hex",
+        "padding": "zero",
+        "key": "2b7e151628aed2a6abf7158809cf4f3c"
+      },
+      "expectedOutput": "3925841d02dc09fbdc118597196a0b32",
+      "notes": [
+        {
+          "fn": "KeyExpansion",
+          "what": "Expands the key into 11 round keys"
+        },
+        {
+          "fn": "SubBytes",
+          "what": "S-box substitution of every byte"
+        },
+        {
+          "fn": "ShiftRows",
+          "what": "Rotates row r left by r"
+        },
+        {
+          "fn": "MixColumns",
+          "what": "Column mixing in GF(2⁸)"
+        },
+        {
+          "fn": "AddRoundKey",
+          "what": "XOR with the round key"
+        },
+        {
+          "fn": "encryptBlock",
+          "what": "Initial AddRoundKey + 10 rounds"
+        },
+        {
+          "fn": "decryptBlock",
+          "what": "Inverse cipher"
+        },
+        {
+          "fn": "buildSbox",
+          "what": "Builds the S-box from its definition"
+        }
+      ]
+    },
+    "pythonLibrary": {
+      "file": "aes128/aes128_lib.py",
+      "deps": [
+        "cryptography"
+      ],
+      "install": "python3 -m pip install cryptography",
+      "run": "python3 aes128_lib.py",
+      "sampleInput": {
+        "action": "encrypt",
+        "format": "hex",
+        "block": "3243f6a8885a308d313198a2e0370734",
+        "keyFormat": "hex",
+        "padding": "zero",
+        "key": "2b7e151628aed2a6abf7158809cf4f3c"
+      },
+      "expectedOutput": "3925841d02dc09fbdc118597196a0b32",
+      "notes": [
+        {
+          "fn": "run",
+          "what": "Library route: AES from the cryptography package, one block in ECB with no padding, to match the demo"
+        }
+      ],
+      "route": "library"
+    }
+  },
+  "rsa": {
+    "folder": "rsa",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "rsa/rsa.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 rsa.py",
+      "usage": "python3 rsa.py encrypt|decrypt p q e text|numbers \"message\"",
+      "sampleInput": {
+        "action": "encrypt",
+        "p": 61,
+        "q": 53,
+        "e": 17,
+        "format": "text",
+        "message": "HI"
+      },
+      "expectedOutput": "3000 1486",
+      "notes": [
+        {
+          "fn": "is_prime",
+          "what": "Trial-division primality test"
+        },
+        {
+          "fn": "rsa_keys",
+          "what": "n = p·q, φ(n) = (p−1)(q−1), checks e, finds d"
+        },
+        {
+          "fn": "inverse_table",
+          "what": "Extended Euclid (r, t rows) to find d = e⁻¹ mod φ(n)"
+        },
+        {
+          "fn": "mod_pow",
+          "what": "Left-to-right square-and-multiply"
+        },
+        {
+          "fn": "run",
+          "what": "Text → code points (or numbers), checks m < n, raises to e or d"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "rsa/rsa.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 rsa.cpp -o rsa && ./rsa",
+      "usage": "./rsa encrypt|decrypt p q e text|numbers \"message\"",
+      "sampleInput": {
+        "action": "encrypt",
+        "p": 61,
+        "q": 53,
+        "e": 17,
+        "format": "text",
+        "message": "HI"
+      },
+      "expectedOutput": "3000 1486",
+      "notes": [
+        {
+          "fn": "mulmod",
+          "what": "(a·b) mod n without 64-bit overflow"
+        },
+        {
+          "fn": "modPow",
+          "what": "Left-to-right square-and-multiply"
+        },
+        {
+          "fn": "inverseOf",
+          "what": "Extended Euclid for d"
+        },
+        {
+          "fn": "codePoints",
+          "what": "UTF-8 text → Unicode code points"
+        },
+        {
+          "fn": "main",
+          "what": "Key checks, blocks, encryption/decryption"
+        }
+      ]
+    }
+  },
+  "diffiehellman": {
+    "folder": "diffiehellman",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "diffiehellman/diffiehellman.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 diffiehellman.py",
+      "usage": "python3 diffiehellman.py p g a b",
+      "sampleInput": {
+        "action": "exchange",
+        "p": 23,
+        "g": 5,
+        "a": 4,
+        "b": 3
+      },
+      "expectedOutput": "18",
+      "notes": [
+        {
+          "fn": "order_of",
+          "what": "Size of the subgroup generated by g"
+        },
+        {
+          "fn": "check",
+          "what": "Rejects degenerate parameters exactly like the web page"
+        },
+        {
+          "fn": "exchange",
+          "what": "A = gᵃ, B = gᵇ, s = Bᵃ = Aᵇ mod p"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "diffiehellman/diffiehellman.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 diffiehellman.cpp -o diffiehellman && ./diffiehellman",
+      "usage": "./diffiehellman p g a b",
+      "sampleInput": {
+        "action": "exchange",
+        "p": 23,
+        "g": 5,
+        "a": 4,
+        "b": 3
+      },
+      "expectedOutput": "18",
+      "notes": [
+        {
+          "fn": "modPow",
+          "what": "Modular exponentiation"
+        },
+        {
+          "fn": "orderOf",
+          "what": "Size of the subgroup generated by g"
+        },
+        {
+          "fn": "check",
+          "what": "Rejects degenerate parameters"
+        },
+        {
+          "fn": "main",
+          "what": "Computes A, B and the shared secret"
+        }
+      ]
+    }
+  },
+  "sha256": {
+    "folder": "sha256",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "sha256/sha256.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 sha256.py",
+      "usage": "python3 sha256.py \"text\"",
+      "sampleInput": {
+        "action": "hash",
+        "text": "abc"
+      },
+      "expectedOutput": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "notes": [
+        {
+          "fn": "pad",
+          "what": "Appends 0x80, zeros and the 64-bit length"
+        },
+        {
+          "fn": "message_schedule",
+          "what": "Expands 16 words into W₀…W₆₃"
+        },
+        {
+          "fn": "compress",
+          "what": "64 rounds on registers a…h, then the feed-forward"
+        },
+        {
+          "fn": "sha256",
+          "what": "Processes every 64-byte block and outputs the hex digest"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "sha256/sha256.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 sha256.cpp -o sha256 && ./sha256",
+      "usage": "./sha256 \"text\"",
+      "sampleInput": {
+        "action": "hash",
+        "text": "abc"
+      },
+      "expectedOutput": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "notes": [
+        {
+          "fn": "pad",
+          "what": "Appends 0x80, zeros and the 64-bit length"
+        },
+        {
+          "fn": "messageSchedule",
+          "what": "W₀…W₆₃"
+        },
+        {
+          "fn": "compress",
+          "what": "64 rounds on a…h plus feed-forward"
+        },
+        {
+          "fn": "sha256",
+          "what": "Hex digest"
+        }
+      ]
+    },
+    "pythonLibrary": {
+      "file": "sha256/sha256_lib.py",
+      "deps": [],
+      "install": "none (hashlib is in the standard library)",
+      "run": "python3 sha256_lib.py",
+      "sampleInput": {
+        "action": "hash",
+        "text": "abc"
+      },
+      "expectedOutput": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "notes": [
+        {
+          "fn": "hashlib.sha256",
+          "what": "Library route: the standard library implementation"
+        }
+      ],
+      "route": "library"
+    }
+  },
+  "base64": {
+    "folder": "base64",
+    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
+    "python": {
+      "file": "base64/base64.py",
+      "deps": [],
+      "install": "none (Python 3 standard library only)",
+      "run": "python3 base64.py",
+      "usage": "python3 base64.py encode|decode \"text\"",
+      "sampleInput": {
+        "action": "encode",
+        "text": "Man"
+      },
+      "expectedOutput": "TWFu",
+      "notes": [
+        {
+          "fn": "encode",
+          "what": "3 bytes → four 6-bit groups → four characters, = for missing bytes"
+        },
+        {
+          "fn": "normalize",
+          "what": "Accepts base64url and missing padding, validates the input"
+        },
+        {
+          "fn": "decode",
+          "what": "Characters → sextets → bytes, rejects non-canonical padding bits"
+        },
+        {
+          "fn": "decode_to_display",
+          "what": "Strict UTF-8 text (BOM kept) or hex for binary data"
+        }
+      ]
+    },
+    "cpp": {
+      "file": "base64/base64.cpp",
+      "deps": [],
+      "install": "g++ with C++17 (standard library only)",
+      "run": "g++ -std=c++17 -O2 base64.cpp -o base64 && ./base64",
+      "usage": "./base64 encode|decode \"text\"",
+      "sampleInput": {
+        "action": "encode",
+        "text": "Man"
+      },
+      "expectedOutput": "TWFu",
+      "notes": [
+        {
+          "fn": "encode",
+          "what": "3 bytes → 4 characters"
+        },
+        {
+          "fn": "normalize",
+          "what": "base64url / padding handling and validation"
+        },
+        {
+          "fn": "decode",
+          "what": "Characters → sextets → bytes"
+        },
+        {
+          "fn": "validUtf8",
+          "what": "Strict UTF-8 check; otherwise the bytes are printed in hex"
+        }
+      ]
+    }
+  }
+}
