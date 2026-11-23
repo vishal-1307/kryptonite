@@ -659,8 +659,13 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 .flow-col { padding: var(--s3) var(--s4); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .flow-col + .flow-col { border-left: 1px solid var(--border); }
 .flow-col:nth-child(2) { background: var(--surface); }
-.flow-title { font-weight: 600; font-size: var(--fs-sm); margin-bottom: 2px; }
-.flow-item { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .88rem; padding: 5px var(--s2); border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--cell); word-break: break-word; }
+.flow-title { font-weight: 600; font-size: var(--fs-sm); margin-bottom: 2px; word-break: normal; overflow-wrap: break-word; }
+/* Narrow stage: stack the Alice / channel / Bob columns instead of breaking words mid-word. */
+@container viz (max-width: 640px) {
+  .v-flow { grid-template-columns: 1fr !important; }
+  .flow-col + .flow-col { border-left: 0; border-top: 1px solid var(--border); }
+}
+.flow-item { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .88rem; padding: 5px var(--s2); border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--cell); word-break: normal; overflow-wrap: break-word; hyphens: none; }
 .flow-item.is-hl { background: var(--hl); color: var(--on-hl); border-color: var(--hl-line); font-weight: 600; animation: pop var(--dur-base) var(--ease-out); }
 .flow-item.is-empty { color: var(--muted); background: transparent; border-style: dashed; }
 
