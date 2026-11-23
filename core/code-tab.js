@@ -15,7 +15,7 @@ export function codeBase(prefs) {
   return /^[a-z0-9_\-/]+\/$/i.test(b) && !b.includes('..') && !b.startsWith('/') ? b : 'code/';
 }
 
-async function loadManifest(base, signal) {
+export async function loadManifest(base, signal) {
   if (!manifestCache.has(base)) {
     manifestCache.set(base, fetch(`${base}manifest.json`, { signal, cache: 'no-cache' })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null)

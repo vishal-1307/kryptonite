@@ -90,7 +90,11 @@ function sync(el, d, ctx = {}) {
     // In a digraph step the input letters are numbered 1, 2 and so are their replacements, so "1 → 1, 2 → 2" reads off the grid.
     const pi = rule ? idxOf(d.primary, r, c) : -1, oi = rule ? idxOf(d.secondary, r, c) : -1;
     n.className = `cell${hl ? ' is-hl' : ''}${out ? ' is-out' : ''}${pi >= 0 && fill[pi] ? ' is-filler' : ''}`;
-    if (pi >= 0 || oi >= 0) n.dataset.n = pi >= 0 && oi >= 0 ? `${pi + 1}→${oi + 1}` : pi >= 0 ? String(pi + 1) : `${oi + 1}′`; else delete n.dataset.n;
+    // Two separate marks: the input number top-right, the output number (primed) bottom-right, plus a tooltip,
+    // so a cell that is both (e.g. DE → OD in one column) reads "input 2" and "output 1′" instead of "2→1".
+    if (pi >= 0) n.dataset.n = String(pi + 1); else delete n.dataset.n;
+    if (oi >= 0) n.dataset.out = `${oi + 1}′`; else delete n.dataset.out;
+    if (pi >= 0 || oi >= 0) n.title = [pi >= 0 ? `input letter ${pi + 1}` : '', oi >= 0 ? `output letter ${oi + 1}′` : ''].filter(Boolean).join(' · '); else n.removeAttribute('title');
     n.textContent = ch === 'I' ? 'I/J' : ch;
   }));
   const legend = el.querySelector('.pf-legend');
@@ -99,6 +103,7 @@ function sync(el, d, ctx = {}) {
     legend.replaceChildren(
       h('span', {}, 'Input ', h('b', {}, `1 ${name(d.primary[0])}`), ' → ', h('b', {}, `1′ ${name(d.secondary[0])}`)),
       h('span', {}, 'Input ', h('b', {}, `2 ${name(d.primary[1])}`), ' → ', h('b', {}, `2′ ${name(d.secondary[1])}`)),
+      h('span', { class: 'pf-key' }, 'corner marks: top = input, bottom = output'),
       fill.some(Boolean) ? h('span', { class: 'is-filler-note' }, 'dashed = filler letter') : null);
     legend.hidden = false;
   } else { legend.replaceChildren(); legend.hidden = true; }

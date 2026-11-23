@@ -28,7 +28,17 @@ export class StepPlayer {
   prev() { this.go(this.index - 1); }
   first() { this.go(0); }
   last() { this.go(this.steps.length - 1); }
-  setSpeed(x) { this.speed = x; if (this.playing) this.schedule(); this.emit(); }
+  setSpeed(x) {
+    const next = x > 0 ? x : 1;
+    if (next === this.speed) return;
+    const ratio = this.speed / next;
+    this.speed = next;
+    // Keep the progress through the current step: the time that is left shrinks/grows with the new speed.
+    // The index never changes here, and a paused step stays paused (only its resume time is rescaled).
+    if (this.playing) this.schedule(Math.max(0, this.stepDelay - (this.now() - this.stepStarted)) * ratio);
+    else if (this.resumeIn !== null) this.resumeIn *= ratio;
+    this.emit();
+  }
   play() {
     if (!this.steps.length) return;
     if (this.resumeIn !== null && !this.atEnd) { // continue the paused step where it stopped

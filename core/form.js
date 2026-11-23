@@ -7,7 +7,10 @@ import { inputsFor } from './contract.js';
  */
 export function buildForm(method, { onInput } = {}) {
   const fields = {};
-  const el = h('div', { class: 'form' });
+  // "Demo values" tag: shown while the inputs are the method's defaults, hidden as soon as the user edits.
+  const demo = h('p', { class: 'demo-tag', id: `demo-${method.id}` }, 'Demo values');
+  const el = h('div', { class: 'form' }, demo);
+  const setDemo = (on) => { demo.hidden = !on; };
 
   for (const input of method.inputs) {
     const id = `in-${method.id}-${input.id}`;
@@ -20,10 +23,14 @@ export function buildForm(method, { onInput } = {}) {
       control = h('input', { id, type: input.type === 'number' ? 'number' : 'text', placeholder: input.placeholder || '', min: input.min, max: input.max, step: input.type === 'number' ? 1 : undefined, spellcheck: 'false', autocomplete: 'off' });
     }
     control.value = input.default ?? '';
-    control.addEventListener('input', () => onInput && onInput());
-    const err = h('div', { class: 'field-error', role: 'alert' });
+    control.addEventListener('input', () => { setDemo(false); if (onInput) onInput(); });
+    if (input.type === 'select') control.addEventListener('change', () => setDemo(false));
+    // Help and error text are tied to the control (aria-describedby); errors also set aria-invalid.
+    const helpId = `${id}-help`, errId = `${id}-err`;
+    const err = h('div', { class: 'field-error', id: errId, role: 'alert' });
+    control.setAttribute('aria-describedby', input.help ? `${helpId} ${errId}` : errId);
     const field = h('div', { class: `field${input.type === 'number' ? '' : ' is-wide'}` },
-      h('label', { for: id }, input.label, input.help ? h('span', { class: 'help' }, input.help) : null), control, err);
+      h('label', { for: id }, input.label, input.help ? h('span', { class: 'help', id: helpId }, input.help) : null), control, err);
     fields[input.id] = { input, control, err, field };
     el.append(field);
   }
@@ -38,13 +45,17 @@ export function buildForm(method, { onInput } = {}) {
       }
       return values;
     },
-    setValues(values) {
+    setValues(values, { demo: isDemo = false } = {}) {
       for (const [k, v] of Object.entries(values)) if (fields[k]) fields[k].control.value = v;
+      setDemo(isDemo);
     },
+    setDemo,
+    get isDemo() { return !demo.hidden; },
     showErrors(fieldErrors = {}) {
       for (const [k, f] of Object.entries(fields)) {
         f.err.textContent = fieldErrors[k] || '';
         f.field.classList.toggle('has-error', !!fieldErrors[k]);
+        if (fieldErrors[k]) f.control.setAttribute('aria-invalid', 'true'); else f.control.removeAttribute('aria-invalid');
       }
     },
     setAction(actionId) {

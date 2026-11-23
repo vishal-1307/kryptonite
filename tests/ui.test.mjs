@@ -199,3 +199,39 @@ test('Explanation and Examples are built from the methods themselves and every e
     for (const x of xs) assert.equal(runAction(m, x.action.id, x.values).output, x.output, `${m.id} ${x.label}`);
   }
 });
+
+test('player: changing speed while playing or paused never moves the step and keeps the remaining time proportional', () => {
+  let t = 0;
+  const p = new StepPlayer({ baseDelay: 1000, now: () => t });
+  p.load([1, 2, 3, 4, 5]);
+  p.play(); // index 1, 1000 ms scheduled
+  t = 500;
+  p.setSpeed(2); // 500 ms left at 1× → 250 ms at 2×
+  assert.equal(p.index, 1);
+  assert.equal(p.stepDelay, 250);
+  t = 600;
+  p.setSpeed(0.5); // 150 ms left at 2× → 600 ms at 0.5×
+  assert.equal(p.index, 1);
+  assert.equal(p.stepDelay, 600);
+  t = 700;
+  p.pause(); // 500 ms left
+  assert.equal(p.resumeIn, 500);
+  p.setSpeed(1); // paused: stays paused, resume time rescaled 500 → 250
+  assert.equal(p.playing, false);
+  assert.equal(p.index, 1);
+  assert.equal(p.resumeIn, 250);
+  p.setSpeed(1); // same speed: no-op
+  assert.equal(p.resumeIn, 250);
+  p.play();
+  assert.equal(p.index, 1, 'resume after speed changes continues the same step');
+  assert.equal(p.stepDelay, 250);
+  p.dispose();
+});
+
+test('scroll affordance: overflow state drives the edge fades', async () => {
+  const { overflowState } = await import('../core/scrollers.js');
+  assert.deepEqual(overflowState({ scrollWidth: 300, clientWidth: 300, scrollHeight: 10, clientHeight: 10, scrollLeft: 0 }), { x: false, y: false, left: false, right: false });
+  assert.deepEqual(overflowState({ scrollWidth: 600, clientWidth: 300, scrollHeight: 10, clientHeight: 10, scrollLeft: 0 }), { x: true, y: false, left: false, right: true });
+  assert.deepEqual(overflowState({ scrollWidth: 600, clientWidth: 300, scrollHeight: 10, clientHeight: 10, scrollLeft: 300 }), { x: true, y: false, left: true, right: false });
+});
+

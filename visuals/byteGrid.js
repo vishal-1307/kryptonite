@@ -51,15 +51,20 @@ export default {
         const v = hex(it.bytes[i]);
         // In a lookup, the Before byte's two hex digits are the S-box row and column.
         const content = lookup && it === first ? h('span', { class: 'nibs' }, h('span', { class: 'nib-row' }, v[0]), h('span', { class: 'nib-col' }, v[1])) : v;
-        const cell = h('span', { class: `cell${hl.has(i) && !op ? ' is-hl' : ''}`, title: `row ${r}, col ${c}`, 'data-i': i }, content);
+        const cell = h('span', { class: `cell${hl.has(i) && !op ? ' is-hl' : ''}`, title: `row ${r}, col ${c}`, 'data-i': i, role: 'gridcell',
+          tabindex: i === 0 ? '0' : '-1', 'aria-label': `${it.label}: byte ${i}, row ${r}, column ${c}, value ${v}${hl.has(i) ? ', highlighted' : ''}` }, content);
         cells[i] = cell; nodes.push(cell);
       }
       refs.set(it, cells);
-      return h('figure', { class: `bg-state${it.tone ? ` tone-${it.tone}` : ''}` }, h('div', { class: 'bg-grid' }, nodes), h('figcaption', {}, it.label));
+      // Keyboard: one tab stop per state grid; arrow keys / Home / End move between bytes (roving tabindex).
+      const rows = [0, 1, 2, 3].map((r) => h('div', { role: 'row', class: 'bg-row' }, nodes.slice(r * 4, r * 4 + 4)));
+      return h('figure', { class: `bg-state${it.tone ? ` tone-${it.tone}` : ''}` },
+        h('div', { class: 'bg-grid', role: 'grid', 'aria-label': `${it.label} (4×4 bytes; arrow keys move between bytes)` }, rows), h('figcaption', {}, it.label));
     };
     const shifts = d.rowShift ? h('div', { class: 'bg-shifts' }, [0, 1, 2, 3].map((r) => h('span', {}, r === 0 ? '—' : `${d.rowShift === 'left' ? '←' : '→'} ${r}`))) : null;
     const row = h('div', { class: 'v-bytegrid' }, shifts, d.items.map((it) => (it.op !== undefined ? h('span', { class: 'mx-op' }, it.op) : grid(it))));
-    const el = h('div', { class: `bg-wrap${op ? ` op-${op}` : ''}` }, row);
+    const said = h('p', { class: 'sr-only', 'aria-live': 'polite', 'aria-atomic': 'true' });
+    const el = h('div', { class: `bg-wrap${op ? ` op-${op}` : ''}` }, row, said);
 
     // Readout (lookup / XOR) — one line per byte stacked in the same grid cell; only the pinned one is visible at rest.
     let lines = null, pin = () => {}, showPin = () => {}, current = 0;
@@ -77,6 +82,27 @@ export default {
       row.addEventListener('click', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) pin(Number(c.dataset.i)); });
       row.addEventListener('mouseover', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) pin(Number(c.dataset.i)); });
     }
+    row.addEventListener('keydown', (e) => {
+      const c = e.target.closest('.cell[data-i]');
+      if (!c) return;
+      const i = Number(c.dataset.i), r = i % 4, col = i >> 2;
+      const moves = { ArrowLeft: [r, col - 1], ArrowRight: [r, col + 1], ArrowUp: [r - 1, col], ArrowDown: [r + 1, col], Home: [r, 0], End: [r, 3] };
+      if (!moves[e.key]) return;
+      e.preventDefault(); e.stopPropagation(); // the player's arrow-key shortcuts must not fire while inspecting bytes
+      const [nr, nc] = moves[e.key];
+      if (nr < 0 || nr > 3 || nc < 0 || nc > 3) return;
+      const cells = [...refs.values()].find((cs) => cs.includes(c));
+      const j = nr + 4 * nc;
+      cells.forEach((x, k) => { x.tabIndex = k === j ? 0 : -1; });
+      cells[j].focus();
+    });
+    row.addEventListener('focusin', (e) => {
+      const c = e.target.closest('.cell[data-i]');
+      if (!c) return;
+      const i = Number(c.dataset.i);
+      if (lines) { pin(i); said.textContent = [...lines[i].children].map((x) => x.textContent.trim()).join(': '); }
+      else said.textContent = '';
+    });
 
     el.afterMount = () => {
       const bCells = first && refs.get(first), aCells = outItem && refs.get(outItem);

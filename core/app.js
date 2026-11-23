@@ -11,9 +11,12 @@ import { createSidebar } from './sidebar.js';
 import { copyText, copyableOutput } from './clipboard.js';
 import { renderExplanation } from './explain.js';
 import { renderExamples } from './examples.js';
-import { renderCodeTab } from './code-tab.js';
+import { renderCodeTab, loadManifest, codeBase } from './code-tab.js';
+import { methodInfo } from './code-manifest.js';
+import { enhanceScrollers } from './scrollers.js';
 import { iconFor } from './icons.js';
 import { teachContext, extraVisuals } from '../visuals/enhance.js';
+import { hillRows } from '../visuals/teach.js';
 import * as anim from '../visuals/anim.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -150,7 +153,7 @@ function renderMethod(method, initial) {
   });
 
   // --- input column
-  const formErr = h('div', { class: 'form-error' });
+  const formErr = h('div', { class: 'form-error', role: 'alert', id: `form-err-${method.id}` });
   const form = buildForm(method, { onInput: () => scheduleRun() });
   const actionBar = h('div', { class: 'segmented mode-switch', role: 'radiogroup', 'aria-label': 'What to do', hidden: actions.length < 2 }, actions.map((a) => h('button', {
     type: 'button', role: 'radio', 'data-action': a.id, onclick: () => setAction(a.id, true),
@@ -163,7 +166,12 @@ function renderMethod(method, initial) {
   });
   const presets = method.examples ? h('div', { class: 'examples' }, h('span', { class: 'examples-label' }, 'Try:'), method.examples.map((ex) => h('button', { type: 'button', class: 'chip', onclick: () => { form.setValues(ex.values); run(); } }, ex.label))) : null;
   const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run', onclick: () => { run(); revealViz(); }, html: `${ICONS.play}<span>Run</span>` });
-  const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { form.setValues(defaultValues(method)); run(); } }, 'Reset');
+  const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { form.setValues(defaultValues(method), { demo: true }); run(); } }, 'Reset');
+  // Educational-use notice near the inputs: the method's own warning (method.warning or the code manifest's
+  // per-method warning) when present, otherwise a short generic line.
+  const GENERIC_NOTICE = 'For learning only: these demos show how the algorithm works and must not be used to protect real data.';
+  const notice = h('p', { class: 'edu-note small', role: 'note' }, typeof method.warning === 'string' && method.warning ? method.warning : GENERIC_NOTICE);
+  if (!method.warning) loadManifest(codeBase(prefs)).then(scope.guard((m) => { const w = m && methodInfo(m, method.id).warning; if (w) notice.textContent = w; }));
 
   const outLabel = h('div', { class: 'out-label', id: `out-label-${method.id}` });
   const outValue = h('output', { class: 'out-value mono', 'aria-labelledby': `out-label-${method.id}` });
@@ -211,7 +219,7 @@ function renderMethod(method, initial) {
 
   panels.visualizer = h('div', { class: 'ws', id: 'panel-visualizer', role: 'tabpanel', 'aria-labelledby': 'tab-visualizer' },
     h('section', { class: 'ws-inputs', 'aria-label': 'Input' },
-      actionBar, presets, form.el, formErr,
+      actionBar, notice, presets, form.el, formErr,
       h('div', { class: 'actions' }, runBtn, resetBtn, h('span', { class: 'kbd-hint' }, kbd('Ctrl'), '+', kbd('Enter'))),
       h('div', { class: 'result' },
         h('div', { class: 'out-head' }, outLabel, h('div', { class: 'out-tools' }, copyBtn)),
@@ -334,7 +342,9 @@ function renderMethod(method, initial) {
     // Maths lines go to the explanation column when the step also has a picture; otherwise they are the picture.
     const pictures = all.filter((v) => v.type !== 'math');
     const toStage = pictures.length ? pictures : all;
-    const toDetails = [...(pictures.length ? all.filter((v) => v.type === 'math') : []), ...extraVisuals(method.id, step)];
+    // Hill block steps: the stage already works the multiplication row by row, so the one-line summary is dropped.
+    const rowByRow = method.id === 'hill' && pictures.some((v) => v.type === 'matrix' && hillRows(step, v.data.items));
+    const toDetails = [...(pictures.length && !rowByRow ? all.filter((v) => v.type === 'math') : []), ...extraVisuals(method.id, step)];
     const fullCtx = { ...ctx, action: stepsAction, methodId: method.id, values: runValues, scope, isPaused: () => !player.playing && player.resumable,
       teach: teachContext(method.id, stepsAction, runValues, step, player.steps) };
     const a = renderInto(stage, toStage, stageNodes, fullCtx, step);
@@ -498,3 +508,13 @@ document.addEventListener('keydown', (e) => {
     ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last() };
   if (map[e.key]) { map[e.key](); e.preventDefault(); }
 });
+
+// Scrollable boxes: focusable + labelled + edge fades only while they overflow (re-checked after any render or resize).
+{
+  const mainEl = document.getElementById('main');
+  let queued = false;
+  const queue = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; enhanceScrollers(mainEl); }); };
+  new MutationObserver(queue).observe(mainEl, { childList: true, subtree: true });
+  window.addEventListener('resize', queue);
+  queue();
+}

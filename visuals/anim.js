@@ -21,7 +21,13 @@ export const motionPreference = () => userPref;
 export const reduced = () => userPref === 'reduce' || !!(mq && mq.matches);
 
 /** Playback speed multiplier (the player's 0.5×…4×) — faster playback means shorter animations. */
-export function setSpeed(x) { speed = x > 0 ? x : 1; }
+export function setSpeed(x) {
+  const next = x > 0 ? x : 1;
+  // Animations already in flight (running or paused) were timed for the old speed: rescale them, so changing the
+  // speed mid-step neither restarts nor desynchronises them (their relative order and progress are kept).
+  if (next !== speed) for (const a of running) { try { a.playbackRate = (a.playbackRate || 1) * (next / speed); } catch { /* gone */ } }
+  speed = next;
+}
 
 /** Motion tokens (ms). Mirrors the --dur-* CSS custom properties in styles.css. */
 export const DUR = { fast: 160, base: 320, slow: 560, travel: 900 };
