@@ -70,7 +70,28 @@ export const pop = (el, opts = {}) => animate(el, [{ transform: 'scale(.9)', opa
 export function settle() {
   for (const a of [...running]) { try { a.finish(); } catch { a.cancel(); } }
   running.clear();
+  for (const a of pausedExtra) { try { a.finish(); } catch { /* gone */ } }
+  pausedExtra.clear();
 }
+
+/** Pause every running animation in place (the player's Pause). resumeAll() continues them from the same frame. */
+// CSS transitions/animations inside `root` (e.g. the Caesar wheel's rotation) are paused too, so nothing on the
+// stage keeps moving while the player is paused.
+const pausedExtra = new Set();
+export function pauseAll(root) {
+  for (const a of running) { try { if (a.playState === 'running') a.pause(); } catch { /* already gone */ } }
+  if (root && typeof root.getAnimations === 'function') {
+    for (const a of root.getAnimations({ subtree: true })) if (!running.has(a) && a.playState === 'running') { try { a.pause(); pausedExtra.add(a); } catch { /* gone */ } }
+  }
+}
+export function resumeAll() {
+  for (const a of [...running]) { try { if (a.playState === 'paused') a.play(); } catch { running.delete(a); } }
+  for (const a of pausedExtra) { try { if (a.playState === 'paused') a.play(); } catch { /* gone */ } }
+  pausedExtra.clear();
+}
+/** Drop every tracked animation without waiting (view unmounted): finish them so nothing keeps a reference to old DOM. */
+export function cancelAll() { settle(); }
+export const pausedCount = () => [...running].filter((a) => a.playState === 'paused').length;
 
 /** Longest a step's animations may take at 1× (ms); the player shows a step for 1400 ms, so ≥0.4 s stays settled. */
 export const STEP_CAP = 1000;
