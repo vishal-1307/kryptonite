@@ -94,23 +94,23 @@ function keySteps(k) {
   const it = inverseTable(k.e, k.phi);
   return [{
     title: 'Pick two primes p and q',
-    explanation: `RSA starts with two secret prime numbers. Real RSA uses primes with hundreds of digits; here we use p = ${k.p} and q = ${k.q} so every step can be followed by hand.`,
+    explanation: `RSA starts with two different secret prime numbers p and q. They must be chosen at random and kept secret (anyone who knows them can compute the private key). Real RSA uses random primes of 1024+ bits each (n of 2048+ bits); here we use the demonstration values p = ${k.p} and q = ${k.q} so every step can be followed by hand.`,
     visual: { type: 'math', data: { lines: [{ expr: `p = ${k.p}`, note: 'prime ✓' }, { expr: `q = ${k.q}`, note: 'prime ✓' }] } },
   }, {
     title: 'Compute n = p × q',
-    explanation: `n is the modulus and is made public. Security relies on the fact that recovering p and q from a large n (factoring) is extremely hard.`,
+    explanation: `n = p × q is the modulus. It is part of both the public and the private key. Every message block m and ciphertext c is a number from 0 to n − 1. Security relies on the fact that recovering p and q from a large n (factoring) is extremely hard.`,
     visual: { type: 'math', data: { lines: [{ expr: `n = ${k.p} × ${k.q} = ${k.n}`, note: 'public', highlight: true }] } },
   }, {
     title: 'Compute φ(n) = (p − 1)(q − 1)',
-    explanation: "Euler's totient φ(n) counts the numbers below n that share no factor with n. It stays secret because computing it needs p and q.",
+    explanation: "Euler's totient φ(n) counts the whole numbers from 1 to n that share no factor with n. For n = p × q with p and q prime it equals (p − 1)(q − 1). It must stay secret: anyone who knows φ(n) can compute d (and even recover p and q). Many real libraries use the smaller λ(n) = lcm(p − 1, q − 1) instead; both give a working d.",
     visual: { type: 'math', data: { lines: [{ expr: `φ(n) = (${k.p} − 1) × (${k.q} − 1) = ${k.p - 1n} × ${k.q - 1n} = ${k.phi}`, note: 'secret', highlight: true }] } },
   }, {
     title: 'Choose the public exponent e',
-    explanation: `e must be between 1 and φ(n) and share no common factor with φ(n), otherwise there is no matching private key.`,
+    explanation: `The public exponent e must satisfy 1 < e < φ(n) and gcd(e, φ(n)) = 1; otherwise it has no inverse mod φ(n) and there is no matching private key. e is public. Real systems almost always use e = 65537.`,
     visual: { type: 'math', data: { lines: [{ expr: `e = ${k.e}`, note: 'public' }, { expr: `gcd(${k.e}, ${k.phi}) = 1`, note: 'coprime ✓', highlight: true }] } },
   }, {
     title: 'Find d with the extended Euclidean algorithm',
-    explanation: `We need d with e × d ≡ 1 (mod ${k.phi}). Start with the rows (r = φ, t = 0) and (r = e, t = 1). Each new row takes q = previous r ÷ current r (whole number), then r_new = r_prev − q × r and t_new = t_prev − q × t. Every row keeps r ≡ t × e (mod φ), so when r reaches 1, t is the inverse.${it.lastT < 0n ? ` The last t is ${it.lastT} (negative), so add φ: ${it.lastT} + ${k.phi} = ${it.d}.` : ''}`,
+    explanation: `The private exponent d is the inverse of e modulo φ(n): the number with e × d ≡ 1 (mod ${k.phi}). It is the secret part of the private key. Start with the rows (r = φ, t = 0) and (r = e, t = 1). Each new row takes q = previous r ÷ current r (whole number), then r_new = r_prev − q × r and t_new = t_prev − q × t. Every row keeps r ≡ t × e (mod φ), so when r reaches 1, t is the inverse.${it.lastT < 0n ? ` The last t is ${it.lastT} (negative), so add φ: ${it.lastT} + ${k.phi} = ${it.d}.` : ''}`,
     visual: [
       { type: 'table', data: { headers: ['Row', 'q', 'r = r₋₂ − q·r₋₁', 't = t₋₂ − q·t₋₁', 'check: t·e mod φ'], highlightRows: [it.rows.length - 1], rows: it.rows.map((row, i) => [
         i, row.q === null ? '—' : `${row.q}`,
@@ -120,9 +120,18 @@ function keySteps(k) {
       ]) } },
       { type: 'math', data: { lines: [{ expr: `d = ${it.lastT} mod ${k.phi} = ${k.d}`, note: 'secret', highlight: true }, { expr: `${k.e} × ${k.d} mod ${k.phi} = ${(k.e * k.d) % k.phi}`, note: 'check ✓' }] } },
     ],
+    meta: {
+      euclid: {
+        phi: `${k.phi}`, e: `${k.e}`,
+        rows: it.rows.map((row, i) => ({ index: i, quotient: row.q === null ? null : `${row.q}`, remainder: `${row.r}`, t: `${row.t}`, tTimesEModPhi: `${(((row.t * k.e) % k.phi) + k.phi) % k.phi}` })),
+        currentRow: it.rows.length - 1,
+        lastT: `${it.lastT}`, d: `${k.d}`,
+      },
+    },
   }, {
     title: 'The key pair',
-    explanation: 'Anyone may use the public key to encrypt. Only the holder of the private key can decrypt.',
+    explanation: 'Public key (n, e): anyone may use it to encrypt. Private key (n, d): only its owner can decrypt. p, q and φ(n) are no longer needed and must be kept secret or destroyed. (Real implementations keep p and q to speed up decryption with the Chinese Remainder Theorem.)',
+    meta: { publicKey: { n: `${k.n}`, e: `${k.e}` }, privateKey: { n: `${k.n}`, d: `${k.d}` }, secret: { p: `${k.p}`, q: `${k.q}`, phi: `${k.phi}` } },
     visual: { type: 'flow', data: { columns: [
       { title: 'Public key', items: [{ text: `n = ${k.n}` }, { text: `e = ${k.e}` }] },
       { title: 'Private key', items: [{ text: `n = ${k.n}` }, { text: `d = ${k.d}`, highlight: true }] },
@@ -141,6 +150,13 @@ function powStep(x, exp, k, label, i, total) {
       { type: 'math', data: { lines: [{ expr: `${label === 'encrypt' ? 'c = m' : 'm = c'}^${sym} mod n = ${x}^${exp} mod ${k.n}`, note: '' }, { expr: `= ${result}`, note: label === 'encrypt' ? 'ciphertext' : 'plaintext', highlight: true }] } },
       { type: 'table', data: { headers: ['Bit', 'Square', 'Multiply', 'Running value'], rows: trace.map((t) => [t.bit, `${t.squared}`, t.multiplied === null ? '—' : `× ${x} → ${t.multiplied}`, `${t.acc}`]), highlightRows: [trace.length - 1] } },
     ],
+    meta: {
+      modPow: {
+        base: `${x}`, exponent: `${exp}`, modulus: `${k.n}`, bits, result: `${result}`, blockIndex: i,
+        // One entry per exponent bit, most significant first (left-to-right square-and-multiply).
+        progress: trace.map((t, bi) => ({ bitIndex: bi, bit: t.bit, base: `${x}`, accBefore: bi === 0 ? '1' : `${trace[bi - 1].acc}`, squared: `${t.squared}`, multiplied: t.multiplied === null ? null : `${t.multiplied}`, acc: `${t.acc}` })),
+      },
+    },
   };
 }
 
@@ -179,8 +195,23 @@ function run({ p, q, e, message, format }, decrypting) {
       + (decrypting ? `Raising to the power d undoes raising to the power e, because e × d ≡ 1 (mod φ(n)).` : `Send the ciphertext numbers. Only the owner of d = ${k.d} can reverse them. Note: encrypting one character at a time is insecure (identical letters give identical numbers); it is used here only for teaching.`),
     visual: { type: 'textRows', data: { rows: [{ label: decrypting ? 'c' : 'm', cells: blocks.map(String) }, { label: decrypting ? 'm' : 'c', cells: results.map(String) }] } },
   });
-  if (!decrypting) steps.push(unsafeStep(k));
+  if (!decrypting) steps.push(unsafeStep(k), realWorldStep());
   return { output, outputLabel, steps };
+}
+
+/** Textbook RSA (this demo) vs RSA as it is really used. */
+function realWorldStep() {
+  return {
+    title: 'Textbook RSA vs real-world RSA',
+    explanation: 'This page is an educational demo of "textbook" RSA with small demonstration values; it is not a production implementation. Real RSA is never used like this: encryption uses OAEP padding (RSAES-OAEP, PKCS #1 v2.2), signatures use PSS (RSASSA-PSS) on a hash of the message, keys are 2048 bits or more, and in practice RSA usually only encrypts or signs a short random key, while the data itself is encrypted with AES. Use a vetted library (for example OpenSSL, libsodium, or your platform\'s crypto API) for real data.',
+    visual: { type: 'table', data: { headers: ['', 'Textbook RSA (this demo)', 'Real-world RSA'], rows: [
+      ['Key size', 'n of a few digits', 'n of 2048, 3072 or 4096 bits'],
+      ['Encryption', 'c = mᵉ mod n, one character at a time', 'RSAES-OAEP: random padding, then mᵉ mod n'],
+      ['Signatures', 'not shown (s = mᵈ mod n would be insecure)', 'RSASSA-PSS over a SHA-256 hash'],
+      ['Same message twice', 'same ciphertext', 'different ciphertext every time (random padding)'],
+      ['What is encrypted', 'the message itself', 'usually a random AES key (hybrid encryption)'],
+    ], highlightRows: [1, 2] } },
+  };
 }
 
 /** Why "textbook" RSA (no padding) is unsafe, with numbers from the current key. */
@@ -210,7 +241,7 @@ export default {
   id: 'rsa',
   name: 'RSA',
   category: 'Asymmetric',
-  description: 'Public-key encryption: key generation from two primes, then c = mᵉ mod n and m = cᵈ mod n.',
+  description: 'Public-key encryption: key generation from two primes, then c = mᵉ mod n and m = cᵈ mod n. Educational "textbook" RSA with small demonstration values: no OAEP/PSS padding, not for real use.',
   ioField: 'message',
   inputs: [
     intInput('p', 'Prime p', 61),
