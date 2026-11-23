@@ -1,5 +1,6 @@
 import { h, s } from '../core/dom.js';
-import { animate, stagger, DUR, EASE } from './anim.js';
+import { animate, stagger, reduced, DUR, EASE } from './anim.js';
+import { railFocus } from './teach.js';
 // data: { rails, cols, cells: [{r,c,ch}], active?: [r,c][], caption?, pattern?: rowIndexPerColumn[] }
 // Cells persist between steps (update), so new letters visibly drop onto their rail, the zigzag path
 // draws forward as far as letters have been written, and a rail being read lights up left to right.
@@ -50,9 +51,48 @@ function sync(el, d, animateChange) {
   cap.hidden = !d.caption;
 }
 
+/**
+ * Keep the active character visible when the fence is wider than its box (it scrolls horizontally, the page never does).
+ * Uses step.meta.focus (method data) when present, else the newest highlighted cell. When a whole leg or rail is
+ * active, the box follows the letters left → right while they light up (owned by the view's scope, pause-aware);
+ * with Motion off it jumps straight to the final position.
+ */
+function keepVisible(el, step, d, ctx = {}) {
+  const sc = el.querySelector('.rf-scroll');
+  const st = el._rf;
+  const f = railFocus(step, d);
+  if (!sc || !f || sc.scrollWidth <= sc.clientWidth + 1) return;
+  const node = (c) => st.cells[c];
+  const labels = el.querySelector('.rf-labels');
+  const gutter = labels ? labels.offsetWidth + 8 : 0; // the sticky rail labels cover the left edge
+  const targetFor = (c) => {
+    const n = node(c); if (!n) return sc.scrollLeft;
+    const r = n.getBoundingClientRect(), box = sc.getBoundingClientRect();
+    const left = r.left - box.left + sc.scrollLeft, right = left + r.width;
+    if (left - gutter < sc.scrollLeft) return Math.max(0, left - gutter - 8);
+    if (right > sc.scrollLeft + sc.clientWidth) return Math.min(sc.scrollWidth - sc.clientWidth, right - sc.clientWidth + 8);
+    return sc.scrollLeft;
+  };
+  const end = targetFor(f.last);
+  if (reduced() || !ctx.scope || f.first === f.last) { sc.scrollLeft = end; return; }
+  const start = Math.min(sc.scrollLeft, targetFor(f.first)), dur = 650;
+  sc.scrollLeft = start;
+  let t0 = null, pausedAt = null;
+  const tick = (t) => {
+    if (!el.isConnected) return;
+    if (ctx.isPaused && ctx.isPaused()) { pausedAt ??= t; ctx.scope.requestAnimationFrame(tick); return; }
+    if (pausedAt !== null) { t0 += t - pausedAt; pausedAt = null; }
+    t0 ??= t;
+    const k = Math.min(1, (t - t0) / dur);
+    sc.scrollLeft = start + (end - start) * (1 - (1 - k) ** 2);
+    if (k < 1) ctx.scope.requestAnimationFrame(tick);
+  };
+  ctx.scope.requestAnimationFrame(tick);
+}
+
 export default {
   type: 'railFence',
-  render(d) {
+  render(d, step) {
     const grid = h('div', { class: 'rf-grid' });
     const order = [...d.cells].sort((a, b) => a.c - b.c);
     const pts = order.map((x) => `${x.c * U + U / 2},${x.r * U + U / 2}`).join(' ');
@@ -74,12 +114,14 @@ export default {
     el.style.setProperty('--rf-rails', d.rails);
     el._rf = { rails: d.rails, cols: d.cols, cells, path, prev: {}, drawn: 0 };
     sync(el, d, true); // first view: path draws from the left, any letters drop in
+    el.afterMount = (ctx) => keepVisible(el, step, d, ctx);
     return el;
   },
-  update(el, d) {
+  update(el, d, step, ctx) {
     const st = el._rf;
     if (!st || st.rails !== d.rails || st.cols !== d.cols) return false; // different fence → fresh render
     sync(el, d, true);
+    keepVisible(el, step, d, ctx);
     return true;
   },
 };

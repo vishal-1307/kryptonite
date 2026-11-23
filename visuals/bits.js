@@ -53,7 +53,21 @@ export default {
         h('div', { class: 'bits-group' }, h('div', { class: 'bits-label' }, g.label), h('div', { class: 'bits-items' }, items), notes),
       ];
     }));
-    const parts = [...el.children];
+    // Decoding runs Characters → Sextets → Bytes (method data: data.direction / step.meta.order). Say so above
+    // the groups, and show the leftover bits after the last full byte (step.meta.droppedBits), which the
+    // generic padding detection above cannot see in this order.
+    const meta = (step && step.meta) || {};
+    if (d.direction === 'decode' || (Array.isArray(meta.order) && meta.order[0] === 'chars')) {
+      const names = { chars: 'Characters', sextets: '6-bit sextets', bytes: '8-bit bytes' };
+      const order = Array.isArray(meta.order) ? meta.order.map((k) => names[k] || k) : groups.map((g) => g.label);
+      el.prepend(h('p', { class: 'bits-dir' }, order.join(' → ')));
+      if (typeof meta.droppedBits === 'string' && meta.droppedBits.length && padGroup < 0) {
+        const last = el.querySelector('.bits-group:last-of-type');
+        if (last) last.append(h('p', { class: 'pad-note' }, h('code', { class: 'bit-pad' }, meta.droppedBits),
+          ` ${meta.droppedBits.length} leftover bit${meta.droppedBits.length > 1 ? 's' : ''} after the last full byte: padding, dropped when decoding`));
+      }
+    }
+    const parts = [...el.children].filter((c) => !c.classList.contains('bits-dir'));
     const each = 180;
     stagger(parts, [{ opacity: 0.35, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 240, each, maxTotal: 900 });
     const gap = parts.length > 1 ? Math.min(each, 900 / (parts.length - 1)) : 0;

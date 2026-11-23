@@ -773,3 +773,31 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 /* Manual toggle (top bar / M key) — same effect as the OS setting. */
 :root.reduce-motion { --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-travel: 1ms; }
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
+.code-warning { margin: 0; padding: var(--s2) var(--s3); border-left: 3px solid var(--hl-line); background: var(--surface); font-size: var(--fs-sm); }
+.cmd-note { color: var(--muted); padding: var(--s1) 0; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--s3); margin: 0; font-size: var(--fs-sm); }
+.kv dt { color: var(--muted); font-weight: 600; font-family: var(--mono); }
+.kv dd { margin: 0; word-break: break-all; }
+.notes code.fn { font-weight: 600; color: var(--text); }
+.pf-legend[hidden] { display: none; }
+/* SHA-256 register changes */
+.hex-chg { text-decoration: underline 2px; text-underline-offset: 2px; text-decoration-color: var(--out); }
+.v-table th.is-col-hl, .v-table td.is-col-hl { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.dark .v-table th.is-col-hl, .dark .v-table td.is-col-hl { color: var(--accent); }
+.rd-pick { flex-wrap: wrap; padding: 2px; }
+.rd-pick button { flex: 0 0 auto; min-width: 2.4rem; height: 30px; min-height: 30px; font-family: var(--mono); }
+.rd-head { margin: 0; color: var(--muted); }
+.rd-head b { color: var(--text); font-family: var(--mono); }
+.rd-new { color: var(--accent-ink); font-weight: 600; } .dark .rd-new { color: var(--accent); }
+.rd-moved { color: var(--text); font-weight: 600; }
+.rd-cell.is-moved { border-style: dashed; }
+.rd-before { font-family: var(--mono); text-decoration: line-through; opacity: .8; }
+/* Hill: row-by-row multiplication */
+.v-hill { display: flex; flex-direction: column; align-items: center; gap: var(--s3); max-width: 100%; }
+.mx-cell { border-radius: var(--r-sm); padding: 0 2px; }
+.hill-work { display: flex; flex-direction: column; gap: var(--s1); font-size: .95rem; max-width: 100%; }
+.hw-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); }
+.hw-label { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); min-width: 3.2em; }
+.hw-mod b { color: var(--accent-ink); } .dark .hw-mod b { color: var(--accent); }
+.hw-letter { font-weight: 700; color: var(--accent-ink); } .dark .hw-letter { color: var(--accent); }
+.bits-dir { margin: 0 0 var(--s1); font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }

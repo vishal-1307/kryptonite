@@ -77,17 +77,31 @@ function drawOverlay(el, d, animated) {
 }
 
 let uid = 0;
-function sync(el, d) {
+const idxOf = (list, r, c) => (list || []).findIndex(([a, b]) => a === r && b === c);
+function sync(el, d, ctx = {}) {
   const st = el._g;
   const rule = ruleOf(d);
   const lit = [];
+  const fill = (ctx.teach && ctx.teach.activeFillers) || [];
   d.cells.forEach((row, r) => row.forEach((ch, c) => {
     const n = st.nodes[r][c];
     const hl = has(d.primary, r, c), out = has(d.secondary, r, c);
     if (hl && !n.classList.contains('is-hl')) lit.push(n);
-    n.className = `cell${hl ? ' is-hl' : ''}${out ? ' is-out' : ''}`;
+    // In a digraph step the input letters are numbered 1, 2 and so are their replacements, so "1 → 1, 2 → 2" reads off the grid.
+    const pi = rule ? idxOf(d.primary, r, c) : -1, oi = rule ? idxOf(d.secondary, r, c) : -1;
+    n.className = `cell${hl ? ' is-hl' : ''}${out ? ' is-out' : ''}${pi >= 0 && fill[pi] ? ' is-filler' : ''}`;
+    if (pi >= 0 || oi >= 0) n.dataset.n = pi >= 0 && oi >= 0 ? `${pi + 1}→${oi + 1}` : pi >= 0 ? String(pi + 1) : `${oi + 1}′`; else delete n.dataset.n;
     n.textContent = ch === 'I' ? 'I/J' : ch;
   }));
+  const legend = el.querySelector('.pf-legend');
+  if (rule && d.primary) {
+    const name = (rc) => { const v = d.cells[rc[0]][rc[1]]; return v === 'I' ? 'I/J' : v; };
+    legend.replaceChildren(
+      h('span', {}, 'Input ', h('b', {}, `1 ${name(d.primary[0])}`), ' → ', h('b', {}, `1′ ${name(d.secondary[0])}`)),
+      h('span', {}, 'Input ', h('b', {}, `2 ${name(d.primary[1])}`), ' → ', h('b', {}, `2′ ${name(d.secondary[1])}`)),
+      fill.some(Boolean) ? h('span', { class: 'is-filler-note' }, 'dashed = filler letter') : null);
+    legend.hidden = false;
+  } else { legend.replaceChildren(); legend.hidden = true; }
   const cap = el.querySelector('figcaption');
   cap.textContent = d.caption ? (rule ? `Rule: ${d.caption}` : d.caption) : '';
   cap.hidden = !d.caption;
@@ -97,14 +111,14 @@ function sync(el, d) {
 
 export default {
   type: 'grid',
-  render(d) {
+  render(d, step, ctx) {
     const nodes = d.cells.map((row) => row.map(() => h('span', { class: 'cell' })));
     const under = s('svg', { class: 'pf-layer pf-under', 'aria-hidden': 'true' });
     const over = s('svg', { class: 'pf-layer pf-over', 'aria-hidden': 'true' });
     const box = h('div', { class: 'grid-box', style: { gridTemplateColumns: `repeat(${d.cells[0].length}, 1fr)` } }, under, nodes.flat(), over);
-    const el = h('figure', { class: 'v-grid' }, box, h('figcaption'));
+    const el = h('figure', { class: 'v-grid' }, box, h('figcaption'), h('p', { class: 'pf-legend', hidden: true }));
     el._g = { nodes, under, over, box, rows: d.cells.length, cols: d.cells[0].length, markerId: `pf-ah-${++uid}`, data: d, size: '' };
-    const { lit } = sync(el, d);
+    const { lit } = sync(el, d, ctx);
     // Needs layout for the overlay → drawn once the app has attached the element.
     el.afterMount = () => {
       drawOverlay(el, el._g.data, true);
@@ -112,15 +126,17 @@ export default {
     };
     if (typeof ResizeObserver === 'function') {
       // Projector toggle / window resize → redraw the overlay statically (no replay) at the new size.
-      new ResizeObserver(() => { const g = el._g; if (g.size && g.size !== `${box.clientWidth}x${box.clientHeight}`) drawOverlay(el, g.data, false); }).observe(box);
+      const ro = new ResizeObserver(() => { if (!el.isConnected) { ro.disconnect(); return; } const g = el._g; if (g.size && g.size !== `${box.clientWidth}x${box.clientHeight}`) drawOverlay(el, g.data, false); });
+      ro.observe(box);
+      if (ctx && ctx.scope) ctx.scope.add(() => ro.disconnect());
     }
     return el;
   },
-  update(el, d) {
+  update(el, d, step, ctx) {
     const st = el._g;
     if (!st || st.rows !== d.cells.length || st.cols !== d.cells[0].length) return false;
     st.data = d;
-    const { rule, lit } = sync(el, d);
+    const { rule, lit } = sync(el, d, ctx);
     drawOverlay(el, d, true);
     if (!rule) stagger(lit, [{ transform: 'scale(.88)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, each: 45, maxTotal: 600 });
     return true;

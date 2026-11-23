@@ -1,6 +1,6 @@
 import { h } from './dom.js';
 import { ICON } from './icons.js';
-import { LANGS, entriesFor, sourceUrl } from './code-manifest.js';
+import { LANGS, entriesFor, sourceUrl, looksLikeCommand, methodInfo } from './code-manifest.js';
 import { tokenize, toLines } from './highlight.js';
 import { copyText } from './clipboard.js';
 
@@ -63,6 +63,7 @@ export function renderCodeTab(method, { scope, prefs }) {
     if (!manifest) { soon(); return; }
     const entries = entriesFor(manifest, method.id);
     const langs = LANGS.filter((l) => entries[l.id]);
+    const info = methodInfo(manifest, method.id);
     if (!langs.length) { soon(); return; }
     let lang = langs.find((l) => l.id === prefs.get('code-lang', 'python')) || langs[0];
     const tabs = h('div', { class: 'segmented code-langs', role: 'radiogroup', 'aria-label': 'Language' });
@@ -72,7 +73,7 @@ export function renderCodeTab(method, { scope, prefs }) {
       tabs.querySelectorAll('button').forEach((b) => { const on = b.dataset.lang === l.id; b.classList.toggle('is-active', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
       show();
     };
-    LANGS.forEach((l) => tabs.append(h('button', { type: 'button', role: 'radio', 'data-lang': l.id, disabled: !entries[l.id], title: entries[l.id] ? l.label : `${l.label}: coming soon`, onclick: () => pick(l) }, l.label)));
+    LANGS.filter((l) => !l.optional || entries[l.id]).forEach((l) => tabs.append(h('button', { type: 'button', role: 'radio', 'data-lang': l.id, disabled: !entries[l.id], title: entries[l.id] ? l.label : `${l.label}: coming soon`, onclick: () => pick(l) }, l.label)));
     tabs.addEventListener('keydown', (e) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
       e.preventDefault(); e.stopPropagation();
@@ -91,23 +92,25 @@ export function renderCodeTab(method, { scope, prefs }) {
       fetch(url, { signal: scope.signal, cache: 'no-cache' }).then((r) => (r.ok ? r.text() : null)).catch(() => null).then(scope.guard((src) => {
         if (my !== gen) return; // a newer language pick won
         if (src == null) { fail(); return; }
-        const [copyBtn, copyStatus] = copyButton(scope, () => src, 'Copy code');
+        const [copyBtn, copyStatus] = copyButton(scope, () => src, 'Copy code', `Copy ${e.file.split('/').pop()}`);
         const cmdRow = (c) => { const [b, st] = copyButton(scope, () => c, 'Copy', `Copy command: ${c}`); return h('li', { class: 'cmd' }, h('code', {}, c), b, st); };
         const sec = (title, ...kids) => h('section', { class: 'code-sec' }, h('h3', {}, title), ...kids);
         body.replaceChildren(
           h('div', { class: 'code-file' },
             h('div', { class: 'code-file-head' }, h('span', { class: 'code-filename mono' }, e.file.split('/').pop()), h('span', { class: 'muted small' }, lang.label), h('span', { class: 'spacer' }), copyBtn),
             copyStatus,
-            codeBlock(src, lang.id)),
+            codeBlock(src, lang.syntax || lang.id)),
           h('div', { class: 'code-meta' },
-            e.deps.length || e.install.length ? sec('Dependencies',
+            info.warning ? h('p', { class: 'code-warning' }, info.warning) : null,
+            sec('Dependencies',
               e.deps.length ? h('ul', { class: 'deps' }, e.deps.map((d) => h('li', { class: 'mono' }, d))) : h('p', { class: 'muted small' }, 'No extra packages.'),
-              e.install.length ? h('ul', { class: 'cmds' }, e.install.map(cmdRow)) : null)
-              : sec('Dependencies', h('p', { class: 'muted small' }, 'None: only the standard library.')),
-            e.run.length ? sec(lang.id === 'cpp' ? 'Compile and run' : 'Run', h('ul', { class: 'cmds' }, e.run.map(cmdRow))) : null,
-            e.sampleInput ? sec('Sample input', h('pre', { class: 'io-block' }, e.sampleInput)) : null,
+              e.install.length ? h('ul', { class: 'cmds' }, e.install.map((c) => (looksLikeCommand(c) ? cmdRow(c) : h('li', { class: 'cmd-note small' }, c)))) : null),
+            e.run.length ? sec(lang.syntax === 'cpp' ? 'Compile and run' : 'Run', h('p', { class: 'muted small' }, 'From the method folder (', h('code', {}, `code/${e.file.split('/').slice(0, -1).join('/') || '.'}`), '):'), h('ul', { class: 'cmds' }, e.run.map(cmdRow))) : null,
+            e.usage ? sec('Usage', h('ul', { class: 'cmds' }, cmdRow(e.usage))) : null,
+            e.sampleFields.length ? sec('Sample input', h('dl', { class: 'kv' }, e.sampleFields.map(([k, v]) => [h('dt', {}, k), h('dd', { class: 'mono' }, v === '' ? h('span', { class: 'muted' }, '(empty)') : v)])))
+              : e.sampleInput ? sec('Sample input', h('pre', { class: 'io-block' }, e.sampleInput)) : null,
             e.expectedOutput ? sec('Expected output', h('pre', { class: 'io-block' }, e.expectedOutput)) : null,
-            e.notes.length ? sec('Notes', h('ul', { class: 'notes' }, e.notes.map((n) => h('li', {}, n)))) : null));
+            e.notes.length ? sec('Functions', h('ul', { class: 'notes' }, e.notes.map((n) => h('li', {}, n.fn ? [h('code', { class: 'fn' }, n.fn), ': '] : null, n.what)))) : null));
       }));
     }
     root.replaceChildren(h('div', { class: 'code-top' }, tabs), body);

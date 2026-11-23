@@ -17,8 +17,13 @@ export function period(seq) {
 }
 
 /** Vigenère-style key progression for column `active`: { keyword, pos (0-based in keyword), count (key letters used so far) }. */
-export function keyProgress(keyCells, active) {
+export function keyProgress(keyCells, active, meta, keyword) {
   const seq = keyCells.filter((c) => c);
+  if (meta && Number.isInteger(meta.keyIndex) && Number.isInteger(meta.keyLength) && meta.keyLength > 0) {
+    // Method data (Vigenère step.meta): exact key position; the keyword comes from the first step's meta.key.
+    const kw = typeof keyword === 'string' && keyword.length === meta.keyLength ? [...keyword] : seq.length >= meta.keyLength ? seq.slice(0, meta.keyLength) : null;
+    if (kw) return { keyword: kw, pos: meta.keyIndex, count: Number.isInteger(meta.letterNumber) ? meta.letterNumber + 1 : seq.length };
+  }
   if (!seq.length || active == null || !keyCells[active]) return null;
   const used = keyCells.slice(0, active + 1).filter((c) => c).length; // 1-based count of the active key letter
   const p = period(seq);
@@ -33,7 +38,7 @@ export function hexDiff(prev, now) {
 
 /** SHA-256: a…h after round t, from the step field if present, else from the rounds table row. */
 export function registerRows(step, tableRows) {
-  const f = step && (step.registers || step.rounds);
+  const f = step && ((step.meta && step.meta.registers) || step.registers || step.rounds);
   if (Array.isArray(f) && f.length && (Array.isArray(f[0]) || typeof f[0] === 'object')) {
     return f.map((r, i) => (Array.isArray(r) ? r : [r.t ?? i, ...['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((k) => r[k] ?? (r.vars ? r.vars['abcdefgh'.indexOf(k)] : ''))]).map(String));
   }
@@ -46,12 +51,16 @@ export function registerRows(step, tableRows) {
  * that the matrix visual shows (both already on screen), which is exactly what the step's math lines state.
  */
 export function hillRows(step, items) {
+  const m = step && step.meta;
+  if (m && Array.isArray(m.rows) && m.rows.length && m.rows[0] && Array.isArray(m.rows[0].terms)) {
+    return m.rows.map((r) => ({ terms: r.terms.map((t) => [Number(t.k), Number(t.x)]), products: r.terms.map((t) => Number(t.product)), sum: Number(r.sum), mod: Number(r.result), letter: r.letter }));
+  }
   const f = step && ((step.hill && step.hill.rows) || step.hillRows);
   if (Array.isArray(f) && f.length && f[0] && Array.isArray(f[0].products)) return f.map((r) => ({ terms: r.terms || null, products: r.products.map(Number), sum: Number(r.sum), mod: Number(r.mod) }));
   const mats = (items || []).filter((x) => x.kind === 'matrix');
   if (mats.length < 3) return null;
   const [K, v] = [mats[0].values, mats[1].values];
-  if (!Array.isArray(K) || K.length !== v.length || K.some((row) => row.length !== v.length)) return null;
+  if (!Array.isArray(K) || !Array.isArray(v) || K.length !== v.length || v.some((r) => r.length !== 1) || K.some((row) => row.length !== v.length)) return null;
   const vec = v.map((r) => Number(r[0]));
   const M = K.map((row) => row.map(Number));
   if ([...vec, ...M.flat()].some((x) => !Number.isFinite(x))) return null;
@@ -64,6 +73,11 @@ export function hillRows(step, items) {
 
 /** Rail Fence: the column that must stay visible (explicit field, else the newest active cell). */
 export function railFocus(step, data) {
+  const mf = step && step.meta && step.meta.focus;
+  if (mf && Number.isInteger(mf.col)) {
+    const cols = (step.meta.active || []).map((a) => a.col).filter(Number.isInteger).sort((a, b) => a - b);
+    return { first: cols.length ? cols[0] : mf.col, last: mf.col };
+  }
   const f = step && (step.activeIndex ?? step.activeChar ?? (step.rail && step.rail.index));
   if (Number.isInteger(f)) return { first: f, last: f };
   if (data && Number.isInteger(data.activeIndex)) return { first: data.activeIndex, last: data.activeIndex };

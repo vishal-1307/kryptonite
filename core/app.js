@@ -13,7 +13,7 @@ import { renderExplanation } from './explain.js';
 import { renderExamples } from './examples.js';
 import { renderCodeTab } from './code-tab.js';
 import { iconFor } from './icons.js';
-import { teachContext } from '../visuals/enhance.js';
+import { teachContext, extraVisuals } from '../visuals/enhance.js';
 import * as anim from '../visuals/anim.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -340,9 +340,9 @@ function renderMethod(method, initial) {
     // Maths lines go to the explanation column when the step also has a picture; otherwise they are the picture.
     const pictures = all.filter((v) => v.type !== 'math');
     const toStage = pictures.length ? pictures : all;
-    const toDetails = pictures.length ? all.filter((v) => v.type === 'math') : [];
+    const toDetails = [...(pictures.length ? all.filter((v) => v.type === 'math') : []), ...extraVisuals(method.id, step)];
     const fullCtx = { ...ctx, action: stepsAction, methodId: method.id, values: runValues, scope, isPaused: () => !player.playing && player.resumable,
-      teach: teachContext(method.id, stepsAction, runValues, step) };
+      teach: teachContext(method.id, stepsAction, runValues, step, player.steps) };
     const a = renderInto(stage, toStage, stageNodes, fullCtx, step);
     const b = renderInto(details, toDetails, detailNodes, fullCtx, step);
     stageNodes = a.next; detailNodes = b.next;

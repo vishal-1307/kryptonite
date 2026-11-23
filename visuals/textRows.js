@@ -20,10 +20,10 @@ function cellEl(v, ri, nRows, row, ctx, colIndex) {
   return h('span', { class: cls }, v === ' ' ? '␣' : v);
 }
 
-function build(d, ctx) {
+function build(d, ctx, step) {
   const n = Math.max(...d.rows.map((r) => r.cells.length));
   const keyRow = d.rows.find((r) => isKey(r.label));
-  const prog = keyRow ? keyProgress(keyRow.cells, d.active) : null;
+  const prog = keyRow ? keyProgress(keyRow.cells, d.active, step && step.meta, ctx && ctx.teach && ctx.teach.keyword) : null;
   const cols = [];
   for (let i = 0; i < n; i++) {
     const past = keyRow && d.active != null && i < d.active;
@@ -69,14 +69,14 @@ function placeCursor(el, fromIndex) {
 export default {
   type: 'textRows',
   render(d, step, ctx) {
-    const el = build(d, ctx);
+    const el = build(d, ctx, step);
     el.afterMount = () => placeCursor(el, null);
     return el;
   },
   update(el, d, step, ctx) {
     const st = el._tr;
     if (!st || d.active == null || st.active == null) return false;
-    const fresh = build(d, ctx);
+    const fresh = build(d, ctx, step);
     if (fresh._tr.sig !== st.sig || fresh._tr.n !== st.n || fresh._tr.rows !== st.rows) return false;
     const fromIndex = st.active;
     el.replaceChildren(...fresh.childNodes);
