@@ -73,7 +73,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.skip { position: absolute; left: var(--s2); top: -3rem; z-index: 20; padding: var(--s2) var(--s3); background: var(--text); color: var(--bg); border-radius: var(--r); }
+.skip { position: absolute; left: var(--s2); top: -4rem; min-height: 44px; display: inline-flex; align-items: center; z-index: 20; padding: var(--s2) var(--s3); background: var(--text); color: var(--bg); border-radius: var(--r); }
 .skip:focus { top: var(--s2); }
 main:focus { outline: none; }
 
@@ -801,3 +801,4 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 .hw-mod b { color: var(--accent-ink); } .dark .hw-mod b { color: var(--accent); }
 .hw-letter { font-weight: 700; color: var(--accent-ink); } .dark .hw-letter { color: var(--accent); }
 .bits-dir { margin: 0 0 var(--s1); font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.code-langs button { white-space: nowrap; flex: 0 0 auto; padding-inline: var(--s3); }

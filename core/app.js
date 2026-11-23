@@ -351,7 +351,7 @@ function renderMethod(method, initial) {
     const fresh = [...a.fresh, ...b.fresh];
     fresh.forEach((el) => anim.enter(el));
     for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(fullCtx);
-    anim.fitStep(); // settle cap: every step finishes animating within ~1.0 s at 1×
+    anim.fitStep(anim.STEP_CAP - 40); // settle cap: ≤ 1.0 s at 1× measured from the click (40 ms left for the render frame)
   }
 
   // --- running
