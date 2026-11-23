@@ -123,7 +123,8 @@ function keySteps(k) {
     meta: {
       euclid: {
         phi: `${k.phi}`, e: `${k.e}`,
-        rows: it.rows.map((row, i) => ({ index: i, quotient: row.q === null ? null : `${row.q}`, remainder: `${row.r}`, t: `${row.t}`, tTimesEModPhi: `${(((row.t * k.e) % k.phi) + k.phi) % k.phi}` })),
+        // r = s·φ + t·e on every row (s is the coefficient of φ; it is not needed for d but completes the identity).
+        rows: (() => { const sc = []; return it.rows.map((row, i) => { sc.push(i === 0 ? 1n : i === 1 ? 0n : sc[i - 2] - row.q * sc[i - 1]); return { index: i, quotient: row.q === null ? null : `${row.q}`, remainder: `${row.r}`, s: `${sc[i]}`, t: `${row.t}`, tTimesEModPhi: `${(((row.t * k.e) % k.phi) + k.phi) % k.phi}` }; }); })(),
         currentRow: it.rows.length - 1,
         lastT: `${it.lastT}`, d: `${k.d}`,
       },

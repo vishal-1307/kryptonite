@@ -68,7 +68,7 @@ All values are plain Numbers and exact: matrix entries are reduced to 0–25 (wi
 * When decrypting in Text format, the **output** is the raw 32-hex block if the bytes are not valid UTF-8 or not valid PKCS#7; `outputLabel` says so.
 
 ## RSA (`rsa`) — all numbers are strings
-* "Find d …": `meta.euclid = { phi, e, rows: [{ index, quotient|null, remainder, t, tTimesEModPhi }], currentRow, lastT, d }`. `quotient` is `null` for the two starting rows. The table uses the r/t form (r = remainder, t = coefficient of e; r ≡ t·e mod φ). The s coefficient (of φ) is not needed for d and is not tracked.
+* "Find d …": `meta.euclid = { phi, e, rows: [{ index, quotient|null, remainder, s, t, tTimesEModPhi }], currentRow, lastT, d }`. `quotient` is `null` for the two starting rows. Every row satisfies remainder = s·φ + t·e (so remainder ≡ t·e mod φ); `currentRow` is the row where the remainder reaches 1, and d = t mod φ there. The on-screen table shows q, r and t only.
 * "The key pair": `meta: { publicKey: { n, e }, privateKey: { n, d }, secret: { p, q, phi } }`.
 * Each "Encrypt/Decrypt block i…" step: `meta.modPow = { base, exponent, modulus, bits, result, blockIndex, progress: [{ bitIndex, bit, base, accBefore, squared, multiplied|null, acc }] }` — left-to-right square-and-multiply, one entry per exponent bit (most significant first): `squared = accBefore² mod n`, then if `bit === '1'` `multiplied = squared · base mod n`; `acc` is the running value after the bit.
 * New step "Textbook RSA vs real-world RSA" (encrypt only, after "Why textbook RSA is unsafe").

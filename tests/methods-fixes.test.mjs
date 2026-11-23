@@ -137,7 +137,8 @@ test('RSA: correct definitions, textbook vs real-world step, Euclid and square-a
   assert.match(real.explanation, /OAEP/); assert.match(real.explanation, /PSS/); assert.match(real.explanation, /2048/);
   const eu = t(/Find d/).meta.euclid;
   assert.equal(eu.d, '2753'); assert.equal(eu.rows[eu.currentRow].remainder, '1');
-  assert.deepEqual(eu.rows[0], { index: 0, quotient: null, remainder: '3120', t: '0', tTimesEModPhi: '0' });
+  assert.deepEqual(eu.rows[0], { index: 0, quotient: null, remainder: '3120', s: '1', t: '0', tTimesEModPhi: '0' });
+  for (const row of eu.rows) assert.equal(BigInt(row.s) * 3120n + BigInt(row.t) * 17n, BigInt(row.remainder), 'r = s·φ + t·e');
   const mp = r.steps.find((s) => s.meta?.modPow).meta.modPow;
   assert.equal(mp.bits, '10001'); assert.equal(mp.result, '2790');
   assert.equal(mp.progress.length, 5); assert.equal(mp.progress.at(-1).acc, '2790');
