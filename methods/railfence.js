@@ -49,6 +49,9 @@ function run({ text, rails }, decrypting) {
   const cellsUpTo = (pred) => plain.map((ch, i) => ({ r: rows[i], c: i, ch: pred(i) ? show(ch) : '' }));
   const fence = (cells, active = [], caption = '', mark = false) => ({ type: 'railFence', data: { rails: n, cols: chars.length, cells, active, caption, pattern: mark ? rows : null } });
   const steps = [];
+  // Optional step.meta for the UI: which characters are active, where they sit, and which column to keep in view.
+  const pos = (i) => ({ index: i, row: rows[i], col: i, ch: plain[i] });
+  const meta = (idx) => { const active = idx.map(pos); return { rails: n, cols: chars.length, active, focus: active.length ? active[active.length - 1] : null }; };
 
   if (!decrypting) {
     steps.push({ title: `Draw ${n} rails`, explanation: `The message is written diagonally down and up across ${n} rows ("rails"), like a zigzag fence. Spaces are kept and shown as ␣.`, visual: fence(cellsUpTo(() => false), [], '', true) });
@@ -65,14 +68,14 @@ function run({ text, rails }, decrypting) {
       // Direction is the step that reached this leg (rows[i] − rows[i−1]), not the rail the leg sits on.
       const delta = s0 === 0 ? (idx.length > 1 ? rows[1] - rows[0] : 1) : rows[s0] - rows[s0 - 1];
       const dir = delta > 0 ? 'going down' : 'going up';
-      steps.push({ title: `Write characters ${s0 + 1}–${end + 1} (${dir})`, explanation: `Continue the zigzag ${dir}: ${idx.map((i) => show(chars[i])).join(' ')}. The direction turns around at the top and bottom rails.`, visual: fence(cellsUpTo((i) => i <= end), idx.map((i) => [rows[i], i])) });
+      steps.push({ title: `Write characters ${s0 + 1}–${end + 1} (${dir})`, explanation: `Continue the zigzag ${dir}: ${idx.map((i) => show(chars[i])).join(' ')}. The direction turns around at the top and bottom rails.`, visual: fence(cellsUpTo((i) => i <= end), idx.map((i) => [rows[i], i])), meta: meta(idx) });
     }
     let soFar = '';
     for (let r = 0; r < n; r++) {
       const part = plain.filter((_, i) => rows[i] === r).join('');
       soFar += part;
       steps.push({ title: `Read rail ${r + 1}`, explanation: `Read rail ${r + 1} left to right: "${part}". Ciphertext so far: "${soFar}".`,
-        visual: fence(cellsUpTo(() => true), plain.map((_, i) => [rows[i], i]).filter(([rr]) => rr === r), `Output: ${soFar}`) });
+        visual: fence(cellsUpTo(() => true), plain.map((_, i) => [rows[i], i]).filter(([rr]) => rr === r), `Output: ${soFar}`), meta: meta(plain.map((_, i) => i).filter((i) => rows[i] === r)) });
     }
   } else {
     steps.push({ title: 'Mark the zigzag pattern', explanation: `First draw the empty zigzag for ${chars.length} characters on ${n} rails, so we know how many characters belong to each rail.`, visual: fence(cellsUpTo(() => false), [], '', true) });
@@ -81,9 +84,9 @@ function run({ text, rails }, decrypting) {
       const count = rows.filter((x) => x === r).length;
       const part = chars.slice(k, k + count).join(''); k += count;
       steps.push({ title: `Fill rail ${r + 1}`, explanation: `Rail ${r + 1} has ${count} positions, so it takes the next ${count} ciphertext characters: "${part}".`,
-        visual: fence(cellsUpTo((i) => rows[i] <= r), plain.map((_, i) => [rows[i], i]).filter(([rr]) => rr === r)) });
+        visual: fence(cellsUpTo((i) => rows[i] <= r), plain.map((_, i) => [rows[i], i]).filter(([rr]) => rr === r)), meta: meta(plain.map((_, i) => i).filter((i) => rows[i] === r)) });
     }
-    steps.push({ title: 'Read the zigzag', explanation: 'Now follow the zigzag from left to right to recover the original message.', visual: fence(cellsUpTo(() => true), plain.map((_, i) => [rows[i], i]), `Output: ${output}`) });
+    steps.push({ title: 'Read the zigzag', explanation: 'Now follow the zigzag from left to right to recover the original message.', visual: fence(cellsUpTo(() => true), plain.map((_, i) => [rows[i], i]), `Output: ${output}`), meta: meta(plain.map((_, i) => i)) });
   }
   if (n >= chars.length) {
     steps.unshift({ title: '⚠ Too many rails', explanation: `With ${n} rails and only ${chars.length} characters, the zigzag never turns around: every character sits on its own rail, so the output is identical to the input. Use fewer rails than characters.`, visual: { type: 'math', data: { lines: [{ expr: `rails (${n}) ≥ length (${chars.length})`, note: 'output = input', highlight: true }] } } });

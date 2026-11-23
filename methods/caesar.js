@@ -2,6 +2,7 @@ import { isLetter, letterIndex, indexLetter, ALPHABET } from '../lib/text.js';
 import { mod } from '../lib/math.js';
 
 const MAX_LETTER_STEPS = 24; // keep long messages watchable
+const PASS_NOTE = 'Only the letters A–Z / a–z are shifted (case is kept). Everything else (spaces, digits, punctuation, accented or non-Latin letters) is copied to the output unchanged and in the same position.';
 const MIN_LETTERS_FOR_STATS = 20; // below this, frequency scores are unreliable
 
 // English letter frequencies (%), used to score brute-force candidates.
@@ -30,12 +31,15 @@ function run(text, shift, decrypting) {
   const chars = [...text];
   const out = shiftText(text, eff);
   const outChars = [...out];
+  const passCount = chars.filter((ch) => !isLetter(ch)).length;
   const formula = decrypting ? 'D(x) = (x − k) mod 26' : 'E(x) = (x + k) mod 26';
   const steps = [{
     title: decrypting ? `Rotate the alphabet back by ${k}` : `Rotate the alphabet by ${k}`,
-    explanation: decrypting
+    explanation: (decrypting
       ? `Decryption undoes the shift: every cipher letter moves ${k} places back. The inner ring shows which plain letter each cipher letter came from.`
-      : `Caesar replaces each letter with the one ${k} places further down the alphabet, wrapping Z around to A. Numbers, spaces and punctuation stay unchanged.`,
+      : `Caesar replaces each letter with the one ${k} places further down the alphabet, wrapping Z around to A.`)
+      + ` ${PASS_NOTE}${passCount ? ` In this message ${passCount} character${passCount === 1 ? ' is' : 's are'} copied unchanged.` : ''}`,
+    meta: { shift: k, effectiveShift: eff, passThroughCount: passCount },
     visual: [
       { type: 'wheel', data: { shift: eff } },
       { type: 'letterStrip', data: { top: [...ALPHABET], bottom: [...shiftText(ALPHABET, eff)], labelTop: decrypting ? 'Cipher' : 'Plain', labelBottom: decrypting ? 'Plain' : 'Cipher' } },
@@ -61,6 +65,7 @@ function run(text, shift, decrypting) {
           { expr: `(${x} ${decrypting ? '−' : '+'} ${k}) mod 26 = ${y}`, note: `${ch.toUpperCase()} → ${outChars[i].toUpperCase()}`, highlight: true },
         ] } },
       ],
+      meta: { charIndex: i, letterNumber: shown - 1, inValue: x, outValue: y, shift: k },
     });
   });
   const letters = chars.filter(isLetter).length;
