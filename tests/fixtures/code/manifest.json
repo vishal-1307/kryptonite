@@ -1,0 +1,13 @@
+{
+  "methods": {
+    "demo": {
+      "warning": "Fixture only.",
+      "folder": "demo",
+      "Python3": { "file": "demo/demo.py", "deps": [{ "name": "pycryptodome", "version": ">=3.20" }], "install": ["pip install pycryptodome"], "run": "python3 demo.py", "sampleInput": "hello", "expectedOutput": "HELLO", "notes": "Upper-cases the input." },
+      "c++": { "file": "code/demo/demo.cpp", "install": "none (standard library only)", "run": "g++ -std=c++17 demo.cpp -o demo\n./demo", "sampleInput": { "text": "hello", "n": 3 }, "notes": [{ "fn": "main", "what": "reads stdin" }, "free text"] },
+      "rust": { "file": "demo/demo.rs" }
+    },
+    "broken": { "python": { "deps": [] } },
+    "escape": { "python": { "file": "../secret.py" } }
+  }
+}

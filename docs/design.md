@@ -149,3 +149,29 @@ Reads at 16px (silhouette + keyhole). Colours: accent green on light, #4ade80 on
 Wordmark: "Kryptonite" in IBM Plex Sans SemiBold, −0.02em, outlined to paths in `assets/logo.svg`.
 Files: `assets/logo-mark.svg`, `assets/logo.svg` (lockup), `favicon.svg`, `assets/apple-touch-icon.png` (180),
 `assets/og-image.png` (1200×630, light), preview `assets/logo-preview.png`.
+
+## 8. Workspace, sidebar and tabs (ui-animations branch)
+
+* **Shell.** Collapsible sidebar (248px expanded, 64px icon rail with tooltips; toggle next to the logo; state in
+  `localStorage['cv-sidebar']`, default collapsed below 1200px when nothing is saved). Groups and counts come from the
+  registry (`core/groups.js`): All Methods, Classical Ciphers, Modern Cryptography, Hashing & Encoding; category links go
+  to `#/c/<slug>`. Below 900px it is a modal drawer (menu button in the top bar, focus trapped, Esc / scrim / link closes,
+  focus returns to the menu button; `inert` when closed). Flat 24×24 stroke icons in `core/icons.js`.
+* **Method page.** Title row + tablist (Visualizer, Explanation, Code, Examples; ARIA tabs, arrow/Home/End keys,
+  deep links `#/aes/code`, `?a=decrypt`). Visualizer is a three-column workspace when the page container is ≥940px:
+  inputs + result | visualization with timeline and player under it | "What is happening", maths and step list.
+  At ≥560px viewport height the workspace is fixed to the viewport and the columns scroll inside, so the visualization
+  is always on screen at 1280×800. 680–939px: inputs and result side by side, visualization full width, explanation
+  below. Narrow: inputs, visualization, explanation stacked; Run scrolls the visualization into view.
+* **Explanation** is built only from the method's own text and step titles/explanations (`core/explain.js`).
+  **Examples** are produced by running the method (`core/examples.js`); "Load into visualizer" fills the inputs.
+  **Code** reads `code/manifest.json` (see `docs/code-manifest.md`).
+* **Lifecycle.** Each method view owns a `Scope` (`core/lifecycle.js`); route changes dispose it (timers, rAF, observers,
+  fetches), cancel animations and reset speed, so nothing from the previous method can render later.
+* **Teaching visuals** read the optional `step.meta` fields (`code/STEP_FIELDS.md`) and fall back to deriving the same
+  hint from the visual data (`visuals/teach.js`): Vigenère key ribbon, Playfair pair badges 1/2 → 1′/2′ and dashed
+  filler letters, Hill row × vector → sum → mod 26 per row, SHA-256 before → after register diff with changed hex digits
+  underlined, Base64 decode direction, Rail Fence keeps the active letters scrolled into view, RSA square-and-multiply
+  table. All big numbers stay strings.
+* **CSP.** No inline script, handler or `style` attribute anywhere; the theme boot is `core/theme-boot.js`; dynamic
+  styles use CSSOM (`el.style`, `setProperty`).
