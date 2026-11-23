@@ -125,7 +125,7 @@ export default {
       if (!ruleOf(d)) stagger(lit, [{ transform: 'scale(.88)', opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: DUR.base, each: 45, maxTotal: 600 });
     };
     if (typeof ResizeObserver === 'function') {
-      // Projector toggle / window resize → redraw the overlay statically (no replay) at the new size.
+      // Window or column resize → redraw the overlay statically (no replay) at the new size.
       const ro = new ResizeObserver(() => { if (!el.isConnected) { ro.disconnect(); return; } const g = el._g; if (g.size && g.size !== `${box.clientWidth}x${box.clientHeight}`) drawOverlay(el, g.data, false); });
       ro.observe(box);
       if (ctx && ctx.scope) ctx.scope.add(() => ro.disconnect());

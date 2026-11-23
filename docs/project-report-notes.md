@@ -14,7 +14,7 @@ When cryptography is taught in class, each algorithm (Caesar, Vigenère, Playfai
 3. Show every intermediate step with an animation and a plain-language explanation, with play / pause / step / speed controls.
 4. Be **extensible**: adding a new algorithm should need one new file and one line in a registry, with no changes to the core application.
 5. Be correct: verify the implementations against official test vectors.
-6. Be easy to use in class: no installation, works on a projector (large mode), on a laptop and on a phone.
+6. Be easy to use in class: no installation, works on a classroom screen, on a laptop and on a phone.
 
 ## 3. Technology
 - HTML, CSS and vanilla JavaScript (ES modules). No framework, no build step, no backend.

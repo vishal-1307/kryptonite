@@ -31,7 +31,6 @@ function applyPrefs() {
   // Light is the default; dark only when the user picked it (the OS preference is deliberately ignored).
   const dark = prefs.get('theme', 'light') === 'dark';
   document.documentElement.classList.toggle('dark', dark);
-  document.documentElement.classList.toggle('large', prefs.get('large', '0') === '1');
   const tt = $('#theme-toggle');
   tt.removeAttribute('aria-pressed');
   tt.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
@@ -39,13 +38,8 @@ function applyPrefs() {
   tt.querySelector('.theme-label').textContent = dark ? 'Light' : 'Dark';
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = dark ? '#000000' : '#ffffff';
-  $('#large-toggle').setAttribute('aria-pressed', prefs.get('large', '0') === '1');
 }
 $('#theme-toggle').addEventListener('click', () => { prefs.set('theme', document.documentElement.classList.contains('dark') ? 'light' : 'dark'); applyPrefs(); });
-// Projector mode (big text + high contrast). Toggle with the top-bar button or the P key.
-function togglePresentation() { prefs.set('large', prefs.get('large', '0') === '1' ? '0' : '1'); applyPrefs(); }
-$('#large-toggle').addEventListener('click', togglePresentation);
-$('#large-toggle').title = 'Projector mode: big text, high contrast (P)';
 
 // Reduce-motion toggle (stored in localStorage; combined with the OS prefers-reduced-motion setting).
 const motionBtn = h('button', { id: 'motion-toggle', class: 'icon-btn', type: 'button', title: 'Turn animations off (M)', 'aria-label': 'Reduce motion', 'aria-pressed': 'false',
@@ -202,7 +196,7 @@ function renderMethod(method, initial) {
   const kbd = (k) => h('kbd', {}, k);
   const legend = h('p', { class: 'kbd-legend' },
     h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play'),
-    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' projector'), h('span', {}, kbd('M'), ' motion'));
+    h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('M'), ' motion'));
 
   const vizSection = h('section', { class: 'ws-viz', 'aria-labelledby': `viz-h-${method.id}` },
     h('div', { class: 'viz-head' }, h('span', { class: 'viz-kicker', id: `viz-h-${method.id}` }, 'Visualization'), stepCount),
@@ -493,7 +487,7 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.closest('input, textarea, select, [contenteditable]')) return;
   if (sidebar.isOpen()) return;
-  const global = { p: togglePresentation, P: togglePresentation, m: toggleMotion, M: toggleMotion };
+  const global = { m: toggleMotion, M: toggleMotion };
   if (global[e.key]) { global[e.key](); e.preventDefault(); return; }
   if (!view || view.tab !== 'visualizer') return;
   if (e.target.closest('[role="tablist"], [role="radiogroup"]')) return;

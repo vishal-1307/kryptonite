@@ -9,7 +9,6 @@
       var meta = document.querySelector('meta[name=theme-color]');
       if (meta) meta.content = '#000000';
     }
-    if (localStorage.getItem('cv-large') === '1') root.classList.add('large');
     if (localStorage.getItem('cv-motion') === 'reduce') root.classList.add('reduce-motion');
     var sb = localStorage.getItem('cv-sidebar');
     if (sb === 'collapsed' || (sb !== 'expanded' && window.innerWidth < 1200)) root.classList.add('sb-collapsed');

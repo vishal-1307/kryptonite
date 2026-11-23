@@ -54,9 +54,6 @@
   --danger: #ff8a7a; --danger-soft: #2a0f0b; --focus: #9dbcff;
   color-scheme: dark;
 }
-/* Projector mode: bigger type, stronger lines, darker secondary text. */
-.large { font-size: 20px; --muted: #3d3d39; --border: #bdbdb6; --line: #8a8a84; --input-border: #8a8a84; }
-.large.dark { --muted: #d0d0d0; --border: #444444; --line: #6a6a6a; --input-border: #6a6a6a; }
 
 /* ---------- Base ---------- */
 * { box-sizing: border-box; }
@@ -113,19 +110,18 @@ main:focus { outline: none; }
 .sb-item.is-active::before { content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 2px 2px 0; background: var(--accent); }
 .sb-cat.has-active .sb-icon, .sb-cat.has-active { color: var(--text) !important; }
 
-/* Collapsed rail (desktop only). Projector mode always uses the rail to give the workspace the room. */
+/* Collapsed rail (desktop only). */
 @media (min-width: 900px) {
-  .sb-collapsed .sidebar, .large .sidebar { width: var(--sb-rail); }
-  .sb-collapsed .sb-head, .large .sb-head { flex-direction: column; justify-content: center; height: auto; min-height: var(--top-h); padding: var(--s2) 0; gap: var(--s1); }
-  .sb-collapsed .sb-brand, .large .sb-brand { flex: none; }
-  .sb-collapsed .sb-brand .brand-name, .large .sb-brand .brand-name { display: none; }
-  .sb-collapsed .sb-label, .sb-collapsed .sb-count, .large .sb-label, .large .sb-count { opacity: 0; width: 0; flex: 0 0 0; padding: 0; border: 0; min-width: 0; }
-  .sb-collapsed .sb-item, .large .sb-item { justify-content: center; gap: 0; padding: 0; }
-  .sb-collapsed .sb-nav, .large .sb-nav { padding-inline: var(--s2); }
-  .sb-collapsed .sb-cat, .large .sb-cat { min-height: 28px; }
-  .sb-collapsed .sb-cat .sb-icon, .large .sb-cat .sb-icon { width: 24px; height: 24px; }
-  .sb-collapsed .sb-cat .sb-icon svg, .large .sb-cat .sb-icon svg { width: 16px; height: 16px; }
-  .large .sb-toggle { display: none; } /* projector keeps the rail; the toggle comes back when projector mode is off */
+  .sb-collapsed .sidebar{ width: var(--sb-rail); }
+  .sb-collapsed .sb-head{ flex-direction: column; justify-content: center; height: auto; min-height: var(--top-h); padding: var(--s2) 0; gap: var(--s1); }
+  .sb-collapsed .sb-brand{ flex: none; }
+  .sb-collapsed .sb-brand .brand-name{ display: none; }
+  .sb-collapsed .sb-label, .sb-collapsed .sb-count{ opacity: 0; width: 0; flex: 0 0 0; padding: 0; border: 0; min-width: 0; }
+  .sb-collapsed .sb-item{ justify-content: center; gap: 0; padding: 0; }
+  .sb-collapsed .sb-nav{ padding-inline: var(--s2); }
+  .sb-collapsed .sb-cat{ min-height: 28px; }
+  .sb-collapsed .sb-cat .sb-icon{ width: 24px; height: 24px; }
+  .sb-collapsed .sb-cat .sb-icon svg{ width: 16px; height: 16px; }
 }
 .sb-tip { position: fixed; z-index: 60; transform: translateY(-50%); padding: 4px var(--s2); border-radius: var(--r-sm); background: var(--text); color: var(--bg); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; }
 .sb-tip[hidden] { display: none; }
@@ -686,14 +682,6 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 .explain.layout-side .where-right { display: inline; }
 .explain.layout-side .where-below { display: none; }
 
-/* ---------- Projector mode ---------- */
-.large .stage { min-height: 300px; }
-.large .v-wheel { width: min(400px, 80vw); }
-.large .explain { font-size: 1.05rem; }
-.large .step-title { font-size: 1.3rem; }
-.large .cell { border-width: 2px; }
-@container page (min-width: 940px) { .large .ws { grid-template-columns: 250px minmax(0, 1fr) 270px; } }
-@container page (min-width: 1240px) { .large .ws { grid-template-columns: 290px minmax(0, 1fr) 330px; } }
 
 /* ---------- Responsive ---------- */
 @container page (max-width: 900px) { .method-list { grid-template-columns: minmax(0, 1fr); } }
@@ -703,7 +691,6 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
   .crumb { display: none; }
 }
 @media (max-width: 600px) {
-  .large { font-size: 17px; }
   main { padding: var(--s3) var(--s3) var(--s5); }
   .home-head { padding-top: var(--s2); }
   .home-head h1 { font-size: var(--fs-2xl); }

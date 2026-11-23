@@ -13,7 +13,7 @@ A classroom tool that shows **how cryptographic algorithms work, step by step**.
 Features
 - Step player: play / pause, previous / next, first / last, speed (0.5×–4×), scrubber, jump-to-step list, keyboard shortcuts (← → Space Home End, Ctrl+Enter to run).
 - Encrypt → Decrypt round trip in one click (the output is carried over).
-- Projector mode (large text), light mode by default with a pure-black dark mode, and a layout that works on phones.
+- Light mode by default with a pure-black dark mode, and a layout that works on phones.
 - Works offline: fonts (IBM Plex Sans + Plex Mono, SIL OFL 1.1, `assets/fonts/`) and the logo are bundled — no CDN.
 - Design system and logo: see [`docs/design.md`](docs/design.md); logo files in `assets/` (`logo.svg`, `logo-dark.svg`, `logo-mono.svg`, `logo-mark.svg`, `favicon.svg`).
 - Friendly validation (e.g. "p = 4 is not prime", "this Hill key cannot be inverted").

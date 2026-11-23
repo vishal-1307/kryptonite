@@ -21,7 +21,7 @@ components and visuals use only tokens — no raw hex values outside the token b
 
 ### Header (all pages, 56px, hairline bottom border, solid bg — no blur)
 ```
-[◆ Kryptonite] / Caesar cipher                [Motion] [Projector] [◐ Dark] [GitHub]
+[◆ Kryptonite] / Caesar cipher                [Motion] [◐ Dark] [GitHub]
 ```
 Method name shows as a breadcrumb only on method pages (hidden ≤600px). Buttons 36px tall (44px on touch/≤900px), text labels ≥601px, icon-only below.
 
@@ -69,14 +69,13 @@ No hero slogan, no chips, no badges, no "Open →".
 - Run = primary accent button, 44px tall, with play icon; full width ≤600px.
 - Sidebar hidden <1100px → native `<select>` method switcher beside the title (above it ≤600px).
 - ≤380px the GitHub header icon is dropped (the footer links to the repo) so the wordmark never clips.
-- Projector mode: sidebar hidden, root font 20px, stronger borders, stage min-height 360px.
 
 ## 3. Type
 Fonts (self-hosted, OFL 1.1, latin subset, `font-display: swap`, license in `assets/fonts/OFL.txt`):
 - UI: **IBM Plex Sans** variable 400–700 (`assets/fonts/ibm-plex-sans-var-latin.woff2`, 45 KB)
 - Data: **IBM Plex Mono** 400 + 600 (`ibm-plex-mono-{400,600}-latin.woff2`, 15 KB each)
 Plex was chosen over Inter because Inter is the default of nearly every generated template; Plex is
-engineered, highly legible at projector distance, and Sans/Mono share metrics. Glyphs outside latin
+engineered, highly legible from the back of a classroom, and Sans/Mono share metrics. Glyphs outside latin
 (→ ⊕ ᵉ) fall back to system fonts via `unicode-range`.
 `font-variant-numeric: tabular-nums` on all numbers, counters, hex and tables.
 
