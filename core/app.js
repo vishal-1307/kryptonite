@@ -4,29 +4,22 @@ import { visuals } from '../visuals/index.js';
 import { getActions, validate, runAction, defaultValues } from './contract.js';
 import { buildForm } from './form.js';
 import { StepPlayer } from './player.js';
+import { Scope } from './lifecycle.js';
+import { parseHash, methodHash, TABS } from './router.js';
+import { groupMethods, groupOf } from './groups.js';
+import { createSidebar } from './sidebar.js';
+import { copyText, copyableOutput } from './clipboard.js';
+import { renderExplanation } from './explain.js';
+import { renderExamples } from './examples.js';
+import { renderCodeTab } from './code-tab.js';
+import { iconFor } from './icons.js';
+import { teachContext } from '../visuals/enhance.js';
 import * as anim from '../visuals/anim.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const byId = Object.fromEntries(methods.map((m) => [m.id, m]));
-
-// ------------------------------------------------------------ categories
-function grouped() {
-  const cats = [...categoryOrder];
-  for (const m of methods) if (!cats.includes(m.category)) cats.push(m.category);
-  return cats.map((c) => [c, methods.filter((m) => m.category === c)]).filter(([, list]) => list.length);
-}
-const catSlug = (c) => c.toLowerCase().replace(/[^a-z]+/g, '-');
-// Teacher-facing groups (registry categories stay as they are; unknown categories get their own group).
-const GROUPS = [
-  ['Classical ciphers', ['Classical']],
-  ['Modern cryptography', ['Symmetric', 'Asymmetric', 'Key Exchange']],
-  ['Hashing & encoding', ['Hashing', 'Encoding']],
-];
-function groups() {
-  const known = new Set(GROUPS.flatMap(([, c]) => c));
-  const extra = grouped().filter(([c]) => !known.has(c)).map(([c, list]) => [c, list]);
-  return [...GROUPS.map(([name, cats]) => [name, methods.filter((m) => cats.includes(m.category))]), ...extra].filter(([, list]) => list.length);
-}
+const ids = methods.map((m) => m.id);
+const GROUPS = groupMethods(methods, categoryOrder);
 const firstSentence = (t) => (t.match(/^.*?[.!?](?=\s|$)/) || [t])[0];
 
 // ------------------------------------------------------------ preferences
@@ -49,7 +42,7 @@ function applyPrefs() {
   $('#large-toggle').setAttribute('aria-pressed', prefs.get('large', '0') === '1');
 }
 $('#theme-toggle').addEventListener('click', () => { prefs.set('theme', document.documentElement.classList.contains('dark') ? 'light' : 'dark'); applyPrefs(); });
-// Presentation mode (big text + high contrast for projectors). Toggle with the top-bar button or the P key.
+// Projector mode (big text + high contrast). Toggle with the top-bar button or the P key.
 function togglePresentation() { prefs.set('large', prefs.get('large', '0') === '1' ? '0' : '1'); applyPrefs(); }
 $('#large-toggle').addEventListener('click', togglePresentation);
 $('#large-toggle').title = 'Projector mode: big text, high contrast (P)';
@@ -71,38 +64,44 @@ motionBtn.addEventListener('click', toggleMotion);
 applyMotion();
 applyPrefs();
 
-// ------------------------------------------------------------ views
+const sidebar = createSidebar({ groups: GROUPS, total: methods.length, prefs });
 const main = $('#main');
 
-function renderHome() {
-  document.title = 'Kryptonite — see how ciphers work, step by step';
-  setCrumb(null);
+// Skip link: focus the main region without touching the hash (the hash is the router's).
+$('.skip').addEventListener('click', (e) => { e.preventDefault(); focusMain(); });
+function focusMain() { main.focus({ preventScroll: true }); main.scrollIntoView({ block: 'start' }); }
+
+// ------------------------------------------------------------ home
+function setCrumb(text) { const c = $('#crumb'); c.hidden = !text; c.textContent = text || ''; }
+const arrowIcon = () => { const t = document.createElement('template'); t.innerHTML = '<svg class="mr-go" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'; return t.content.firstChild; };
+
+function renderHome(categorySlug) {
+  const only = GROUPS.find((g) => g.slug === categorySlug) || null;
+  document.title = only ? `${only.name} · Kryptonite` : 'Kryptonite — see how ciphers work, step by step';
+  setCrumb(only ? only.name : null);
+  sidebar.setActive({ groupSlug: only ? only.slug : null, home: !only });
   main.className = 'view-home';
+  const list = only ? [only] : GROUPS;
   main.replaceChildren(
     h('section', { class: 'home-head' },
-      h('h1', {}, 'Choose a method'),
-      h('p', { class: 'lead' }, 'Type a message and a key, press Run, then step through what the method does.')),
-    ...groups().map(([name, list]) => h('section', { class: 'group', 'aria-labelledby': `g-${catSlug(name)}` },
-      h('h2', { class: 'group-title', id: `g-${catSlug(name)}` }, name),
-      h('ul', { class: 'method-list' }, list.map((m) => h('li', {},
+      h('h1', {}, only ? only.name : 'Choose a method'),
+      h('p', { class: 'lead' }, only
+        ? `${only.methods.length} method${only.methods.length === 1 ? '' : 's'}. Pick one, type a message and a key, press Run, then step through it.`
+        : 'Type a message and a key, press Run, then step through what the method does.'),
+      only ? h('p', {}, h('a', { href: '#/', class: 'btn-link' }, `All methods (${methods.length})`)) : null),
+    ...list.map((g) => h('section', { class: 'group', 'aria-labelledby': `g-${g.slug}` },
+      h('h2', { class: 'group-title', id: `g-${g.slug}` }, `${g.name} (${g.methods.length})`),
+      h('ul', { class: 'method-list' }, g.methods.map((m) => h('li', {},
         h('a', { class: 'method-row', href: `#/${m.id}` },
+          h('span', { class: 'mr-icon', html: iconFor(m.id) }),
           h('span', { class: 'mr-name' }, m.name),
           h('span', { class: 'mr-desc' }, firstSentence(m.description)),
-          new Set(list.map((x) => x.category)).size > 1 ? h('span', { class: 'mr-cat' }, m.category) : null,
+          new Set(g.methods.map((x) => x.category)).size > 1 ? h('span', { class: 'mr-cat' }, m.category) : null,
           arrowIcon())))))),
   );
 }
-const arrowIcon = () => { const t = document.createElement('template'); t.innerHTML = '<svg class="mr-go" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'; return t.content.firstChild; };
-function setCrumb(text) { const c = $('#crumb'); c.hidden = !text; c.textContent = text || ''; }
 
-function sidebar(active) {
-  return h('nav', { class: 'sidebar', 'aria-label': 'Methods' },
-    h('a', { class: 'side-home', href: '#/' }, '← All methods'),
-    groups().map(([cat, list]) => h('div', { class: 'side-group' },
-      h('div', { class: 'side-cat' }, cat),
-      list.map((m) => h('a', { href: `#/${m.id}`, class: m.id === active ? 'is-active' : '', 'aria-current': m.id === active ? 'page' : null }, m.name)))));
-}
-
+// ------------------------------------------------------------ method view
 const svgIcon = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">${d}</svg>`;
 const ICONS = {
   first: svgIcon('<rect x="5" y="5" width="2.5" height="14" rx="1"/><path d="M19 5.5v13a.8.8 0 0 1-1.2.7L8.6 12.7a.8.8 0 0 1 0-1.4l9.2-6.5a.8.8 0 0 1 1.2.7z"/>'),
@@ -112,40 +111,78 @@ const ICONS = {
   next: svgIcon('<path d="M8.5 5.5v13a.8.8 0 0 0 1.3.6l8.2-6.5a.8.8 0 0 0 0-1.2L9.8 4.9a.8.8 0 0 0-1.3.6z"/>'),
   last: svgIcon('<rect x="16.5" y="5" width="2.5" height="14" rx="1"/><path d="M5 5.5v13a.8.8 0 0 0 1.2.7l9.2-6.5a.8.8 0 0 0 0-1.4L6.2 4.8A.8.8 0 0 0 5 5.5z"/>'),
 };
+const TAB_LABEL = { visualizer: 'Visualizer', explanation: 'Explanation', code: 'Code', examples: 'Examples' };
 
-let player = null;
-function renderMethod(method, actionId) {
+/** The current view. Everything asynchronous it starts belongs to view.scope and dies with it. */
+let view = null;
+function disposeView() {
+  if (!view) return;
+  view.scope.dispose();
+  view.player.dispose();
+  anim.cancelAll();
+  anim.setSpeed(1);
+  view = null;
+}
+
+function renderMethod(method, initial) {
+  const scope = new Scope(method.id);
   document.title = `${method.name} · Kryptonite`;
   setCrumb(method.name);
+  sidebar.setActive({ methodId: method.id });
   main.className = 'view-method';
+  const group = groupOf(GROUPS, method.id);
   const actions = getActions(method);
-  let action = actions.find((a) => a.id === actionId) || actions[0];
+  let action = actions.find((a) => a.id === initial.action) || actions[0];
+  let tab = initial.tab || 'visualizer';
 
-  // --- input card
-  const formErr = h('div', { class: 'form-error' }); // announced via the stage's role=alert panel (avoids double announcements)
+  // --- tabs (ARIA tablist; each tab is also a deep link #/<id>/<tab>)
+  const tabBtns = {};
+  const panels = {};
+  const tablist = h('div', { class: 'tabs', role: 'tablist', 'aria-label': `${method.name} sections` }, TABS.map((t) => {
+    tabBtns[t] = h('a', { role: 'tab', id: `tab-${t}`, class: 'tab', href: methodHash(method.id, { tab: t, action: action.id !== actions[0].id ? action.id : null }), 'aria-controls': `panel-${t}` }, TAB_LABEL[t]);
+    return tabBtns[t];
+  }));
+  tablist.addEventListener('keydown', (e) => {
+    const i = TABS.indexOf(document.activeElement?.id?.replace('tab-', ''));
+    if (i < 0) return;
+    let n = null;
+    if (e.key === 'ArrowRight') n = (i + 1) % TABS.length; else if (e.key === 'ArrowLeft') n = (i - 1 + TABS.length) % TABS.length;
+    else if (e.key === 'Home') n = 0; else if (e.key === 'End') n = TABS.length - 1;
+    else if (e.key === ' ') { e.preventDefault(); tabBtns[TABS[i]].click(); return; }
+    if (n === null) return;
+    e.preventDefault(); e.stopPropagation();
+    tabBtns[TABS[n]].focus();
+    tabBtns[TABS[n]].click(); // automatic activation (cheap panels)
+  });
+
+  // --- input column
+  const formErr = h('div', { class: 'form-error' });
   const form = buildForm(method, { onInput: () => scheduleRun() });
-  const actionBar = h('div', { class: 'segmented mode-switch', role: 'tablist', 'aria-label': 'What to do', hidden: actions.length < 2 }, actions.map((a) => h('button', {
-    type: 'button', role: 'tab', 'data-action': a.id, onclick: () => setAction(a.id, true),
+  const actionBar = h('div', { class: 'segmented mode-switch', role: 'radiogroup', 'aria-label': 'What to do', hidden: actions.length < 2 }, actions.map((a) => h('button', {
+    type: 'button', role: 'radio', 'data-action': a.id, onclick: () => setAction(a.id, true),
   }, a.label)));
-  const examples = method.examples ? h('div', { class: 'examples' }, h('span', { class: 'examples-label' }, 'Try:'), method.examples.map((ex) => h('button', { type: 'button', class: 'chip', onclick: () => { form.setValues(ex.values); run(); } }, ex.label))) : null;
-  const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run', onclick: () => run(), html: `${ICONS.play}<span>Run</span>` });
+  actionBar.addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    const i = actions.indexOf(action), n = (i + (e.key === 'ArrowRight' ? 1 : -1) + actions.length) % actions.length;
+    setAction(actions[n].id, true); actionBar.querySelector(`[data-action="${actions[n].id}"]`).focus();
+  });
+  const presets = method.examples ? h('div', { class: 'examples' }, h('span', { class: 'examples-label' }, 'Try:'), method.examples.map((ex) => h('button', { type: 'button', class: 'chip', onclick: () => { form.setValues(ex.values); run(); } }, ex.label))) : null;
+  const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run', onclick: () => { run(); revealViz(); }, html: `${ICONS.play}<span>Run</span>` });
   const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { form.setValues(defaultValues(method)); run(); } }, 'Reset');
 
-  // --- output card
-  const outLabel = h('div', { class: 'out-label' });
-  const outValue = h('output', { class: 'out-value mono' });
-  const copyBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async () => {
-    try { await navigator.clipboard.writeText(outValue.textContent); copyBtn.textContent = 'Copied'; } catch { copyBtn.textContent = 'Copy failed'; }
-    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
-  } }, 'Copy');
+  const outLabel = h('div', { class: 'out-label', id: `out-label-${method.id}` });
+  const outValue = h('output', { class: 'out-value mono', 'aria-labelledby': `out-label-${method.id}` });
+  const copyLabel = h('span', {}, 'Copy');
+  const copyBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm btn-copy' }, copyLabel);
+  const copyStatus = h('span', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
   const chainBtn = h('button', { type: 'button', class: 'btn btn-link' });
 
-  // --- visualizer
+  // --- visualizer column
   const stepCount = h('span', { class: 'step-count', 'aria-hidden': 'true' });
-  const live = h('p', { class: 'sr-only', 'aria-live': 'polite', 'aria-atomic': 'true' }); // announces step changes
-  const stepTitle = h('h3', { class: 'step-title' });
+  const live = h('p', { class: 'sr-only', 'aria-live': 'polite', 'aria-atomic': 'true' });
+  const stepTitle = h('h2', { class: 'step-title' });
   const stage = h('div', { class: 'stage', role: 'group', 'aria-label': 'Visualization of the current step' });
-  const explain = h('p', { class: 'explain' });
   const btn = (icon, title, fn, cls = '', label = '') => h('button', { type: 'button', class: `ctrl ${cls}`, title, 'aria-label': title, onclick: fn,
     html: ICONS[icon] + (label ? `<span class="ctrl-label">${label}</span>` : '') });
   const playBtn = btn('play', 'Play / pause (Space)', () => player.toggle(), 'ctrl-play', 'Play');
@@ -153,146 +190,227 @@ function renderMethod(method, actionId) {
   const nextBtn = btn('next', 'Next step (→)', () => player.next(), 'ctrl-step ctrl-next', 'Next');
   const firstBtn = btn('first', 'First step (Home)', () => player.first(), 'ctrl-edge');
   const lastBtn = btn('last', 'Last step (End)', () => player.last(), 'ctrl-edge');
-  const scrub = h('input', { type: 'range', min: 0, max: 0, value: 0, class: 'scrub', 'aria-label': 'Step', oninput: (e) => player.go(Number(e.target.value)) });
-  const speed = h('select', { class: 'speed', id: 'speed', onchange: (e) => { anim.setSpeed(Number(e.target.value)); player.setSpeed(Number(e.target.value)); } },
+  const scrub = h('input', { type: 'range', min: 0, max: 0, value: 0, step: 1, class: 'scrub', 'aria-label': 'Timeline: step', oninput: (e) => player.go(Number(e.target.value)) });
+  const ticks = h('div', { class: 'ticks', 'aria-hidden': 'true' });
+  const speed = h('select', { class: 'speed', id: `speed-${method.id}`, 'aria-label': 'Playback speed', onchange: (e) => { anim.setSpeed(Number(e.target.value)); player.setSpeed(Number(e.target.value)); } },
     [0.5, 1, 1.5, 2, 4].map((x) => h('option', { value: x, selected: x === 1 }, `${x}×`)));
+
+  // --- explanation column
+  const explain = h('p', { class: 'explain' });
+  const details = h('div', { class: 'details', role: 'group', 'aria-label': 'Maths for this step' });
+  const stepList = h('ol', { class: 'step-list' });
   const kbd = (k) => h('kbd', {}, k);
   const legend = h('p', { class: 'kbd-legend' },
     h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play'),
     h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('P'), ' projector'), h('span', {}, kbd('M'), ' motion'));
-  const stepList = h('ol', { class: 'step-list' });
-  const progress = h('div', { class: 'progress' }, h('span'));
+
+  const vizSection = h('section', { class: 'ws-viz', 'aria-labelledby': `viz-h-${method.id}` },
+    h('div', { class: 'viz-head' }, h('span', { class: 'viz-kicker', id: `viz-h-${method.id}` }, 'Visualization'), stepCount),
+    stepTitle,
+    stage,
+    h('div', { class: 'player', role: 'toolbar', 'aria-label': 'Step controls' },
+      h('div', { class: 'timeline' }, h('div', { class: 'scrub-wrap' }, ticks, scrub),
+        h('label', { class: 'speed-wrap', for: `speed-${method.id}` }, h('span', {}, 'Speed'), speed)),
+      h('div', { class: 'ctrl-row' },
+        h('div', { class: 'ctrl-main' }, firstBtn, prevBtn, playBtn, nextBtn, lastBtn))),
+    live);
+
+  panels.visualizer = h('div', { class: 'ws', id: 'panel-visualizer', role: 'tabpanel', 'aria-labelledby': 'tab-visualizer' },
+    h('section', { class: 'ws-inputs', 'aria-label': 'Input' },
+      actionBar, presets, form.el, formErr,
+      h('div', { class: 'actions' }, runBtn, resetBtn, h('span', { class: 'kbd-hint' }, kbd('Ctrl'), '+', kbd('Enter'))),
+      h('div', { class: 'result' },
+        h('div', { class: 'out-head' }, outLabel, h('div', { class: 'out-tools' }, copyBtn)),
+        outValue, copyStatus, chainBtn)),
+    vizSection,
+    h('aside', { class: 'ws-explain', 'aria-labelledby': `ex-h-${method.id}` },
+      h('h2', { class: 'panel-kicker', id: `ex-h-${method.id}` }, 'What is happening'),
+      explain, details,
+      h('details', { class: 'all-steps', open: true }, h('summary', {}, 'All steps'), stepList),
+      legend));
+  for (const t of ['explanation', 'code', 'examples']) panels[t] = h('div', { class: `doc-panel doc-${t}`, id: `panel-${t}`, role: 'tabpanel', 'aria-labelledby': `tab-${t}`, tabindex: '0', hidden: true });
 
   main.replaceChildren(
-    sidebar(method.id),
-    h('div', { class: 'content' },
-      h('header', { class: 'method-head' },
-        h('div', { class: 'mh-text' },
-          h('p', { class: 'mh-cat' }, method.category),
-          h('h1', {}, method.name),
-          h('p', { class: 'lead' }, method.description)),
-        h('label', { class: 'method-switch-wrap' }, h('span', { class: 'sr-only' }, 'Switch method'),
-          h('select', { class: 'method-switch', 'aria-label': 'Switch method', onchange: (e) => { location.hash = `#/${e.target.value}`; } },
-            groups().map(([cat, list]) => h('optgroup', { label: cat }, list.map((m) => h('option', { value: m.id, selected: m.id === method.id }, m.name))))))),
-      h('div', { class: 'io panel' },
-        h('section', { class: 'io-in', 'aria-label': 'Input' }, actionBar, examples, form.el, formErr,
-          h('div', { class: 'actions' }, runBtn, resetBtn, h('span', { class: 'kbd-hint' }, kbd('Ctrl'), '+', kbd('Enter')))),
-        h('section', { class: 'io-out', 'aria-label': 'Output' },
-          h('div', { class: 'out-head' }, outLabel, h('div', { class: 'out-tools' }, copyBtn)),
-          outValue, chainBtn)),
-      h('section', { class: 'viz', 'aria-label': 'Steps' },
-        h('div', { class: 'viz-head' }, stepCount, stepTitle),
-        progress,
-        stage,
-        explain,
-        h('div', { class: 'controls', role: 'toolbar', 'aria-label': 'Step controls' },
-          h('div', { class: 'ctrl-main' }, firstBtn, prevBtn, playBtn, nextBtn, lastBtn),
-          h('div', { class: 'ctrl-aux' },
-            h('label', { class: 'speed-wrap', for: 'speed' }, h('span', {}, 'Speed'), speed),
-            scrub)),
-        h('div', { class: 'viz-foot' },
-          h('details', { class: 'all-steps' }, h('summary', {}, 'All steps'), stepList),
-          legend),
-        live)),
+    h('header', { class: 'mhead' },
+      h('div', { class: 'mh-text' },
+        h('p', { class: 'mh-cat' }, group ? group.name : method.category, group && group.name !== method.category ? h('span', { class: 'mh-sub' }, ` · ${method.category}`) : null),
+        h('h1', {}, method.name),
+        h('p', { class: 'mh-desc', title: method.description }, method.description)),
+      tablist),
+    panels.visualizer, panels.explanation, panels.code, panels.examples,
   );
 
-  // --- player wiring
-  let nodes = []; // [{type, el}] for in-place updates (smooth animations)
-  if (player) player.pause(false);
-  anim.setSpeed(1);
-  let shown = null; // the step object currently on stage (so play/pause/speed changes don't re-animate it)
-  let shownIndex = -1, shownList = null, stepsAction = null; // stepsAction: the action (e.g. encode/decode) that produced the steps
-  player = new StepPlayer({ onChange: (p) => {
-    const step = p.current;
-    const n = p.steps.length;
-    stepCount.replaceChildren(...(n ? ['Step ', h('b', {}, String(p.index + 1)), ` / ${n}`] : []));
-    stepTitle.textContent = step ? step.title : '';
-    renderExplanation(step ? step.explanation : '');
-    playBtn.innerHTML = (p.playing ? ICONS.pause : ICONS.play) + `<span class="ctrl-label">${p.playing ? 'Pause' : 'Play'}</span>`;
-    playBtn.classList.toggle('is-playing', p.playing);
-    playBtn.setAttribute('aria-pressed', p.playing);
-    prevBtn.disabled = firstBtn.disabled = !n || p.index === 0;
-    nextBtn.disabled = lastBtn.disabled = !n || p.index >= n - 1;
-    scrub.max = Math.max(0, n - 1); scrub.value = p.index;
-    scrub.setAttribute('aria-valuetext', n ? `Step ${p.index + 1} of ${n}` : 'No steps');
-    progress.firstChild.style.width = n > 1 ? `${(p.index / (n - 1)) * 100}%` : n ? '100%' : '0%';
-    [...stepList.children].forEach((li, i) => li.classList.toggle('is-current', i === p.index));
-    if (step !== shown) {
-      const direction = shownList === p.steps ? Math.sign(p.index - shownIndex) : 0; // +1 forward, −1 back, 0 fresh run
-      shown = step; shownIndex = p.index; shownList = p.steps;
-      renderStage(step, { direction, action: stepsAction });
-      live.textContent = step ? `Step ${p.index + 1} of ${n}: ${step.title}. ${step.explanation}` : '';
+  function showTab(t) {
+    tab = TABS.includes(t) ? t : 'visualizer';
+    for (const k of TABS) {
+      const on = k === tab;
+      tabBtns[k].setAttribute('aria-selected', String(on));
+      tabBtns[k].tabIndex = on ? 0 : -1;
+      tabBtns[k].classList.toggle('is-active', on);
+      panels[k].hidden = !on;
     }
-  } });
+    main.dataset.tab = tab;
+    if (tab !== 'visualizer' && player.playing) player.pause();
+    if (tab === 'explanation' && !panels.explanation.childElementCount) panels.explanation.append(renderExplanation(method));
+    if (tab === 'code' && !panels.code.childElementCount) panels.code.append(renderCodeTab(method, { scope, prefs }));
+    if (tab === 'examples' && !panels.examples.childElementCount) panels.examples.append(renderExamples(method, { onLoad: loadExample }));
+    document.title = `${method.name}${tab !== 'visualizer' ? ` · ${TAB_LABEL[tab]}` : ''} · Kryptonite`;
+  }
+  function loadExample(ex) {
+    form.setValues(ex.values);
+    setAction(ex.action.id, false);
+    run();
+    location.hash = methodHash(method.id, { action: action.id !== actions[0].id ? action.id : null });
+    scope.requestAnimationFrame(() => { stage.focus?.(); tabBtns.visualizer.focus({ preventScroll: true }); });
+  }
+  function updateTabLinks() {
+    for (const t of TABS) tabBtns[t].href = methodHash(method.id, { tab: t, action: action.id !== actions[0].id ? action.id : null });
+  }
 
-  // Method text may say where the worked example sits ("worked out below"). Whether it is below or beside the
-  // grids depends on how the stage wraps, so both words are rendered and the stage's real layout picks one.
-  function renderExplanation(text) {
-    const parts = text.split(/\b(worked out below)\b/);
+  // --- player
+  let stageNodes = [], detailNodes = [];
+  anim.setSpeed(1);
+  let shown = null, shownIndex = -1, shownList = null, stepsAction = null, runValues = null;
+  const player = new StepPlayer({
+    onPause: () => anim.pauseAll(vizSection),
+    onResume: () => anim.resumeAll(),
+    onChange: (p) => {
+      const step = p.current;
+      const n = p.steps.length;
+      stepCount.replaceChildren(...(n ? ['Step ', h('b', {}, String(p.index + 1)), ` / ${n}`] : []));
+      stepTitle.textContent = step ? step.title : '';
+      playBtn.innerHTML = (p.playing ? ICONS.pause : ICONS.play) + `<span class="ctrl-label">${p.playing ? 'Pause' : (p.resumable ? 'Resume' : 'Play')}</span>`;
+      playBtn.classList.toggle('is-playing', p.playing);
+      playBtn.setAttribute('aria-pressed', String(p.playing));
+      playBtn.disabled = n < 2;
+      prevBtn.disabled = firstBtn.disabled = !n || p.index === 0;
+      nextBtn.disabled = lastBtn.disabled = !n || p.index >= n - 1;
+      scrub.disabled = n < 2;
+      scrub.max = String(Math.max(0, n - 1)); scrub.value = String(p.index);
+      scrub.setAttribute('aria-valuetext', n ? `Step ${p.index + 1} of ${n}${step ? `: ${step.title}` : ''}` : 'No steps');
+      scrub.style.setProperty('--fill', n > 1 ? `${(p.index / (n - 1)) * 100}%` : n ? '100%' : '0%');
+      [...stepList.children].forEach((li, i) => { const on = i === p.index; li.classList.toggle('is-current', on); const b = li.firstChild; if (on) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+      if (step !== shown) {
+        const direction = shownList === p.steps ? Math.sign(p.index - shownIndex) : 0; // +1 forward, −1 back, 0 fresh run
+        shown = step; shownIndex = p.index; shownList = p.steps;
+        renderStep(step, { direction });
+        live.textContent = step ? `Step ${p.index + 1} of ${n}: ${step.title}. ${step.explanation}` : '';
+        const cur = stepList.children[p.index];
+        if (cur && stepList.scrollHeight > stepList.clientHeight) stepList.scrollTop = Math.max(0, cur.offsetTop - stepList.clientHeight / 2);
+      }
+    },
+  });
+
+  function renderExplanationText(text) {
+    const parts = String(text || '').split(/\b(worked out below)\b/);
     explain.replaceChildren(...parts.map((p) => (p === 'worked out below'
       ? h('span', {}, 'worked out ', h('span', { class: 'where-below' }, 'below'), h('span', { class: 'where-right' }, 'on the right'))
       : p)));
   }
-  const syncStageLayout = () => {
-    // Side by side = some visual starts above the bottom of the one before it (the flex row did not wrap).
+  const syncWording = () => {
+    // "worked out below": true when the maths sits under the text (details panel) or the stage wraps; "on the right" otherwise.
     const kids = [...stage.children].map((c) => c.getBoundingClientRect());
-    const side = kids.some((r, i) => i > 0 && r.top < kids[i - 1].bottom - 4);
+    const side = !details.childElementCount && kids.some((r, i) => i > 0 && r.top < kids[i - 1].bottom - 4);
     explain.classList.toggle('layout-side', side);
   };
-  new ResizeObserver(syncStageLayout).observe(stage);
+  scope.observe(new ResizeObserver(scope.guard(syncWording)), stage);
 
-  function renderStage(step, ctx = {}) {
-    anim.settle(); // finish the previous step's animations instantly so rapid clicks never pile up
-    if (!step) { stage.replaceChildren(); nodes = []; return; }
-    const list = [].concat(step.visual || []);
+  /** Render a list of visuals into `box`, reusing nodes in place when the renderer supports update(). */
+  function renderInto(box, list, nodes, ctx, step) {
     const fresh = [];
     const next = list.map((v, i) => {
       const r = visuals[v.type];
       if (!r) return { type: v.type, el: h('div', { class: 'v-missing' }, `Unknown visual type "${v.type}". Add it to visuals/index.js.`) };
       const prev = nodes[i];
-      // update() may return false to ask for a fresh render (e.g. the layout changed size).
       if (prev && prev.type === v.type && r.update && r.update(prev.el, v.data, step, ctx) !== false) return prev;
       const el = r.render(v.data, step, ctx);
       el.classList.add('v');
       fresh.push(el);
       return { type: v.type, el };
     });
-    stage.replaceChildren(...next.map((x) => x.el));
-    stage.dataset.count = next.length;
-    nodes = next;
-    syncStageLayout();
-    fresh.forEach((el) => anim.enter(el)); // no delay: the new step must be visible immediately
-    // Renderers that animate after being attached (they need layout) expose el.afterMount(ctx).
-    for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(ctx);
+    box.replaceChildren(...next.map((x) => x.el));
+    box.dataset.count = next.length;
+    return { next, fresh };
+  }
+  function renderStep(step, ctx = {}) {
+    anim.settle(); // finish the previous step's animations instantly so rapid clicks never pile up
+    renderExplanationText(step ? step.explanation : '');
+    if (!step) { stage.replaceChildren(); details.replaceChildren(); stageNodes = []; detailNodes = []; return; }
+    const all = [].concat(step.visual || []);
+    // Maths lines go to the explanation column when the step also has a picture; otherwise they are the picture.
+    const pictures = all.filter((v) => v.type !== 'math');
+    const toStage = pictures.length ? pictures : all;
+    const toDetails = pictures.length ? all.filter((v) => v.type === 'math') : [];
+    const fullCtx = { ...ctx, action: stepsAction, methodId: method.id, values: runValues, scope, isPaused: () => !player.playing && player.resumable,
+      teach: teachContext(method.id, stepsAction, runValues, step) };
+    const a = renderInto(stage, toStage, stageNodes, fullCtx, step);
+    const b = renderInto(details, toDetails, detailNodes, fullCtx, step);
+    stageNodes = a.next; detailNodes = b.next;
+    details.hidden = !toDetails.length;
+    syncWording();
+    const fresh = [...a.fresh, ...b.fresh];
+    fresh.forEach((el) => anim.enter(el));
+    for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(fullCtx);
     anim.fitStep(); // settle cap: every step finishes animating within ~1.0 s at 1×
   }
 
-  let lastRun = null; // { action, output } of the last successful run
+  // --- running
+  let lastRun = null; // { action, input, output } of the last successful run
+  const ioValue = () => (method.ioField ? form.read()[method.ioField] : undefined);
   function setAction(id, rerun) {
     const prevAction = action;
     action = actions.find((a) => a.id === id) || actions[0];
-    // Switching Encrypt → Decrypt (or back) carries the result over, so a round trip is one click.
-    if (rerun && method.ioField && lastRun && action.inverse === lastRun.action && prevAction.id === lastRun.action) {
+    // Round trip: switching Encrypt → Decrypt carries the result over, but ONLY if the message box still holds
+    // exactly what produced that result. Text typed or pasted since then (even before the auto-run fired) is kept.
+    if (rerun && method.ioField && lastRun && action.inverse === lastRun.action && prevAction.id === lastRun.action && ioValue() === lastRun.input) {
       form.setValues({ [method.ioField]: lastRun.output });
     }
-    actionBar.querySelectorAll('button').forEach((b) => { const on = b.dataset.action === action.id; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', on); });
+    actionBar.querySelectorAll('button').forEach((b) => { const on = b.dataset.action === action.id; b.classList.toggle('is-active', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
     form.setAction(action.id);
     const inv = action.inverse && actions.find((a) => a.id === action.inverse);
     chainBtn.hidden = !(inv && method.ioField);
     if (inv) chainBtn.textContent = `${inv.label} this result →`;
-    history.replaceState(null, '', `#/${method.id}${action.id !== actions[0].id ? `?a=${action.id}` : ''}`);
+    history.replaceState(null, '', methodHash(method.id, { tab, action: action.id !== actions[0].id ? action.id : null }));
+    updateTabLinks();
     if (rerun) run();
   }
   chainBtn.addEventListener('click', () => {
-    if (!outValue.dataset.raw) return;
-    setAction(action.inverse, true);
+    if (pending !== null) run(); // the user typed and the auto-run has not fired yet: use the current text
+    if (!lastRun || lastRun.action !== action.id) return;
+    form.setValues({ [method.ioField]: lastRun.output });
+    const inv = action.inverse;
+    setAction(inv, false);
+    run();
   });
 
-  let timer;
-  function scheduleRun() { clearTimeout(timer); timer = setTimeout(run, 450); }
+  let pending = null;
+  function scheduleRun() { scope.clearTimeout(pending); pending = scope.setTimeout(() => { pending = null; run(); }, 450); }
+
+  let output = { raw: null, isError: true };
+  function setOutput(text, { raw = null, isError = false } = {}) {
+    output = { raw, isError };
+    outValue.textContent = text;
+    outValue.classList.toggle('is-error', isError);
+    outValue.classList.toggle('is-placeholder', !isError && raw === '');
+    const can = copyableOutput(output) !== null;
+    copyBtn.setAttribute('aria-disabled', String(!can));
+    copyBtn.title = can ? 'Copy the result' : 'Nothing to copy';
+    copyLabel.textContent = 'Copy';
+  }
+  let copyTimer = null;
+  copyBtn.addEventListener('click', async () => {
+    const text = copyableOutput(output);
+    const r = text === null ? { ok: false, reason: 'Nothing to copy' } : await copyText(text);
+    if (!scope.alive) return;
+    copyLabel.textContent = r.ok ? 'Copied' : text === null ? 'Nothing to copy' : 'Copy failed';
+    copyStatus.textContent = r.ok ? 'Result copied.' : r.reason || 'Copy failed.';
+    scope.clearTimeout(copyTimer);
+    copyTimer = scope.setTimeout(() => { copyLabel.textContent = 'Copy'; }, 1400);
+  });
 
   function run() {
-    clearTimeout(timer);
+    scope.clearTimeout(pending); pending = null;
+    if (!scope.alive) return;
     const values = form.read();
     const { fieldErrors, formError } = validate(method, action.id, values);
     form.showErrors(fieldErrors);
@@ -301,14 +419,13 @@ function renderMethod(method, actionId) {
     try {
       const res = runAction(method, action.id, values);
       outLabel.textContent = res.outputLabel || (action.label === 'Encrypt' ? 'Ciphertext' : action.label === 'Decrypt' ? 'Plaintext' : 'Result');
-      outValue.classList.remove('is-error');
-      outValue.textContent = res.output || '(empty)';
-      outValue.dataset.raw = res.output;
+      setOutput(res.output || '(empty)', { raw: res.output, isError: false });
       outValue.classList.remove('flash'); void outValue.offsetWidth; outValue.classList.add('flash');
       stepList.replaceChildren(...res.steps.map((s, i) => h('li', {}, h('button', { type: 'button', onclick: () => player.go(i) }, s.title))));
-      stepsAction = action.id; // set before load(): load() renders the first step
+      ticks.replaceChildren(...(res.steps.length > 1 && res.steps.length <= 60 ? res.steps.map(() => h('span')) : []));
+      stepsAction = action.id; runValues = values; // set before load(): load() renders the first step
       player.load(res.steps);
-      lastRun = { action: action.id, output: res.output };
+      lastRun = { action: action.id, input: method.ioField ? values[method.ioField] : undefined, output: res.output };
     } catch (e) {
       formErr.textContent = e.message;
       showFailed(e.message);
@@ -318,32 +435,53 @@ function renderMethod(method, actionId) {
     const msg = message || 'The input is not valid.';
     lastRun = null;
     outLabel.textContent = 'Fix the input to see a result';
-    outValue.textContent = msg;
-    outValue.classList.add('is-error');
-    delete outValue.dataset.raw;
-    stepList.replaceChildren();
+    setOutput(msg, { isError: true });
+    stepList.replaceChildren(); ticks.replaceChildren();
     player.load([]);
-    // Same message in the stage, as an accessible alert (screen readers announce it once).
     stepTitle.textContent = 'Can’t run yet';
     const panel = h('div', { class: 'stage-error', role: 'alert' },
       h('span', { class: 'stage-error-icon', 'aria-hidden': 'true' }, '!'),
       h('div', {}, h('strong', {}, 'Input problem'), h('p', {}, msg)));
     stage.replaceChildren(panel);
-    nodes = [];
+    stageNodes = [];
     anim.enter(panel);
+  }
+  /** On narrow layouts the visualization sits below the inputs: bring it into view after an explicit Run. */
+  function revealViz() {
+    if (matchMedia('(min-width: 1100px)').matches) return;
+    const top = vizSection.getBoundingClientRect().top;
+    if (top > window.innerHeight * 0.6) vizSection.scrollIntoView({ block: 'start', behavior: anim.reduced() ? 'auto' : 'smooth' });
   }
 
   setAction(action.id, false);
+  showTab(tab);
   run();
+
+  return {
+    methodId: method.id, scope, player,
+    get action() { return action.id; },
+    get tab() { return tab; },
+    showTab, setAction, run: () => runBtn.click(),
+  };
 }
 
 // ------------------------------------------------------------ routing
 function route() {
-  const [path, query] = location.hash.replace(/^#\/?/, '').split('?');
-  const method = byId[path];
-  if (player) player.pause(false);
-  if (method) renderMethod(method, new URLSearchParams(query || '').get('a'));
-  else renderHome();
+  const r = parseHash(location.hash, ids);
+  if (r.view === 'anchor') { // in-page anchor (e.g. "#main" typed or bookmarked): keep the current view
+    if (!view && !main.childElementCount) renderHome(null);
+    if (r.anchor === 'main') focusMain();
+    return;
+  }
+  sidebar.closeDrawer();
+  if (r.view === 'method' && view && view.methodId === r.id) {
+    if (r.action && r.action !== view.action) view.setAction(r.action, true);
+    if (r.tab !== view.tab) view.showTab(r.tab);
+    return;
+  }
+  disposeView();
+  if (r.view === 'method') view = renderMethod(byId[r.id], r);
+  else renderHome(r.category);
   window.scrollTo({ top: 0 });
 }
 window.addEventListener('hashchange', route);
@@ -351,13 +489,18 @@ route();
 
 // ------------------------------------------------------------ keyboard
 document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { $('.io-in .btn-primary')?.click(); e.preventDefault(); return; }
-  if (!player || !main.classList.contains('view-method')) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { if (view) { view.run(); e.preventDefault(); } return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+  if (sidebar.isOpen()) return;
+  const global = { p: togglePresentation, P: togglePresentation, m: toggleMotion, M: toggleMotion };
+  if (global[e.key]) { global[e.key](); e.preventDefault(); return; }
+  if (!view || view.tab !== 'visualizer') return;
+  if (e.target.closest('[role="tablist"], [role="radiogroup"]')) return;
   if (e.key === ' ' && e.target.closest('button, a, summary')) return;
+  const player = view.player;
   // PageDown/PageUp are what most presentation clickers send.
   const map = { ArrowRight: () => player.next(), ArrowLeft: () => player.prev(), PageDown: () => player.next(), PageUp: () => player.prev(),
-    ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last(), p: togglePresentation, P: togglePresentation, m: toggleMotion, M: toggleMotion };
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
+    ' ': () => player.toggle(), Home: () => player.first(), End: () => player.last() };
   if (map[e.key]) { map[e.key](); e.preventDefault(); }
 });
