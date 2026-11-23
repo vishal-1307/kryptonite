@@ -204,7 +204,7 @@ kbd { display: inline-block; font-size: var(--fs-xs); font-weight: 500; line-hei
 .mh-cat { margin: 0; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
 .mh-sub { font-weight: 500; }
 .mhead h1 { font-size: var(--fs-xl); letter-spacing: -0.015em; margin-top: 2px; }
-.mh-desc { margin: 2px 0 0; color: var(--muted); font-size: var(--fs-sm); max-width: 80ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mh-desc { margin: 2px 0 0; color: var(--muted); font-size: var(--fs-sm); max-width: 80ch; line-height: 1.4; }
 .tabs { display: flex; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); max-width: 100%; overflow-x: auto; scrollbar-width: none; flex: none; }
 .tab { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 var(--s3); border-radius: var(--r-sm); color: var(--muted) !important; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
 .tab:hover { color: var(--text) !important; background: var(--bg); }
@@ -319,8 +319,8 @@ kbd { display: inline-block; font-size: var(--fs-xs); font-weight: 500; line-hei
 
 /* Tablet */
 @container page (min-width: 680px) {
-  .ws-inputs { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: 'mode result' 'presets result' 'form result' 'err result' 'actions result'; align-content: start; column-gap: var(--s5); }
-  .ws-inputs > .mode-switch { grid-area: mode; } .ws-inputs > .examples { grid-area: presets; } .ws-inputs > .form { grid-area: form; }
+  .ws-inputs { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: 'mode result' 'note result' 'presets result' 'form result' 'err result' 'actions result'; align-content: start; column-gap: var(--s5); }
+  .ws-inputs > .mode-switch { grid-area: mode; } .ws-inputs > .examples { grid-area: presets; } .ws-inputs > .form { grid-area: form; } .ws-inputs > .edu-note { grid-area: note; }
   .ws-inputs > .form-error { grid-area: err; } .ws-inputs > .actions { grid-area: actions; }
   .ws-inputs > .result { grid-area: result; border-top: 0; padding-top: 0; padding-left: var(--s5); border-left: 1px solid var(--border); align-self: stretch; }
   .ws-explain { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); grid-template-areas: 'k steps' 'text steps' 'math steps' 'legend steps'; align-content: start; column-gap: var(--s5); }
@@ -374,8 +374,8 @@ kbd { display: inline-block; font-size: var(--fs-xs); font-weight: 500; line-hei
 .ex-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
 .ex-card-head h2 { font-size: var(--fs-md); }
 .ex-action { font-size: var(--fs-xs); color: var(--muted); font-weight: 600; white-space: nowrap; }
-.ex-io { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px var(--s3); margin: 0; font-size: var(--fs-sm); }
-.ex-io dt { color: var(--muted); font-weight: 600; }
+.ex-io { display: grid; grid-template-columns: fit-content(45%) minmax(0, 1fr); gap: 4px var(--s3); margin: 0; font-size: var(--fs-sm); }
+.ex-io dt { color: var(--muted); font-weight: 600; overflow-wrap: anywhere; }
 .ex-io dd { margin: 0; word-break: break-all; }
 .ex-out { color: var(--accent-ink); font-weight: 600; }
 .dark .ex-out { color: var(--accent); }
@@ -699,7 +699,7 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
   .group { margin-top: var(--s5); }
   .mhead { gap: var(--s2); }
   .mhead h1 { font-size: 1.25rem; }
-  .mh-desc { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .mh-desc { line-height: 1.35; }
   .tabs { width: 100%; }
   .tab { flex: 1 1 auto; padding: 0 var(--s2); }
   .ws { gap: var(--s2); }
@@ -818,3 +818,4 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 .step-list li.is-current button { outline: 2px solid currentColor; outline-offset: -2px; }
 .step-list li.is-current button::before { content: "▸ "; }
 .bg-row { display: contents; }
+.ws-inputs, .ws-explain, .ws-viz { position: relative; } /* keeps absolutely positioned sr-only text inside its scrolling column */

@@ -237,7 +237,7 @@ function renderMethod(method, initial) {
       h('div', { class: 'mh-text' },
         h('p', { class: 'mh-cat' }, group ? group.name : method.category, group && group.name !== method.category ? h('span', { class: 'mh-sub' }, ` · ${method.category}`) : null),
         h('h1', {}, method.name),
-        h('p', { class: 'mh-desc', title: method.description }, method.description)),
+        h('p', { class: 'mh-desc' }, method.description)),
       tablist),
     panels.visualizer, panels.explanation, panels.code, panels.examples,
   );
