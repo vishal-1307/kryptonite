@@ -174,7 +174,26 @@ A new visual is also one file: create `visuals/<name>.js` exporting `{ type, ren
 - Vigenère `ATTACKATDAWN` / `LEMON` → `LXFOPVEFRNHR`; Playfair "Hide the gold in the tree stump" → `BMODZBXDNABEKUDMUIXMMOUVIF`; Rail Fence `WEAREDISCOVEREDFLEEATONCE` (3 rails) → `WECRLTEERDSOEEFEAOCAIVDEN`; Hill `HELP` with [[3,3],[2,5]] → `HIAT`; Base64 RFC 4648 vectors.
 - Every method round-trips and returns well-formed steps.
 
-> Educational use: AES here encrypts a single block (no mode of operation) and RSA uses tiny primes without padding, so every step is visible. Use real libraries (Web Crypto, OpenSSL, libsodium) for actual security.
+- Educational fixes (pass-through characters, Vigenère key progression, Playfair fillers, exact Hill key reduction, AES byte lengths and PKCS#7, RSA definitions, degenerate Diffie–Hellman parameters, one-bit SHA-256 avalanche, Base64 decoding order and BOM) in `tests/methods-fixes.test.mjs`.
+
+> Educational use: AES here encrypts a single block (no mode of operation, IV or authentication), RSA is "textbook" RSA with tiny primes and no OAEP/PSS padding, and Diffie–Hellman uses tiny unauthenticated groups, so every step is visible. The default inputs are demonstration values. Use real libraries (Web Crypto, OpenSSL, libsodium) for actual security.
+
+## Code examples (`code/`)
+
+Each method has a hand-written **Python 3** (standard library only) and **C++17** (standard library only) program in `code/<method>/`, with the same sample input and output format as the web page. AES-128 and SHA-256 also have a library route (`aes128_lib.py` with `cryptography`, `sha256_lib.py` with `hashlib`). The AES functions use the visualizer's names (`key_expansion`, `sub_bytes`, `shift_rows`, `mix_columns`, `add_round_key` / `KeyExpansion`, `SubBytes`, …).
+
+```sh
+cd code/caesar && python3 caesar.py                                   # Dwwdfn dw gdzq
+cd code/caesar && g++ -std=c++17 -O2 caesar.cpp -o caesar && ./caesar  # Dwwdfn dw gdzq
+sh code/verify.sh        # compiles and runs all programs and compares them with the JS methods
+node code/make-manifest.mjs   # regenerates code/manifest.json (read by the Code tab)
+```
+
+`code/STEP_FIELDS.md` documents the optional `step.meta` data the methods emit for animations (Vigenère key index, Playfair cells and fillers, Rail Fence active position, Hill row products, RSA Euclid/square-and-multiply, Diffie–Hellman exchange, SHA-256 registers, Base64 decoding groups). All programs are teaching code, not production cryptography.
+
+## Privacy and security headers
+
+Everything runs in the browser: the app makes no network requests with your messages or keys (no `fetch` of user data, no analytics, no beacons; the only requests are for the site's own static files). `vercel.json` sets a strict Content-Security-Policy (`'self'` only, no inline styles, `object-src 'none'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` and a minimal `Permissions-Policy`. Vercel adds HSTS itself. If you change the inline script in `index.html`, update its `sha256-…` hash in `script-src` (or move the script to a file and drop the hash).
 
 ## Team
 

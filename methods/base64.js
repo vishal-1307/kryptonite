@@ -1,4 +1,4 @@
-import { utf8Encode, utf8Decode, toBin } from '../lib/text.js';
+import { utf8Encode, toBin } from '../lib/text.js';
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const MAX_GROUP_STEPS = 12;
@@ -65,6 +65,40 @@ function groupVisual(bytes, i, encoded) {
   ];
 }
 
+/**
+ * Decoding visual, in the correct direction: Base64 characters → 6-bit sextets → 8-bit bytes.
+ * `quad` is the 4-character group, `bytes` the bytes it decodes to (1–3).
+ */
+export function decodeGroup(quad, bytes) {
+  const chars = [...quad];
+  const sextets = chars.filter((c) => c !== '=').map((c) => toBin(CHARS.indexOf(c), 6));
+  const bits = sextets.join('');
+  const used = bytes.length * 8;
+  return {
+    chars,
+    sextets: chars.map((c) => (c === '=' ? null : { char: c, index: CHARS.indexOf(c), bits: toBin(CHARS.indexOf(c), 6) })),
+    bytes: bytes.map((b, k) => ({ value: b, hex: b.toString(16).padStart(2, '0'), bits: bits.slice(k * 8, k * 8 + 8) })),
+    droppedBits: bits.slice(used),
+    visual: { type: 'bits', data: { direction: 'decode', groups: [
+      { label: 'Base64 characters', items: chars.map((c) => ({ top: c, bottom: c === '=' ? 'padding' : `index ${CHARS.indexOf(c)}`, accent: true })) },
+      { label: 'Groups of 6 bits', items: sextets.map((x) => ({ top: x, bottom: `${parseInt(x, 2)}` })) },
+      { label: 'Bytes (8 bits)', items: bytes.map((b) => ({ top: toBin(b), bottom: `${b} (0x${b.toString(16).padStart(2, '0')})${b >= 32 && b < 127 ? ` '${String.fromCharCode(b)}'` : ''}` })) },
+    ] } },
+  };
+}
+
+/** Strict, byte-exact UTF-8 decode (keeps a leading BOM as U+FEFF). Returns null when the bytes are not valid UTF-8. */
+export function strictUtf8(bytes) {
+  try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(new Uint8Array(bytes)); } catch { return null; }
+}
+
+/** Accurate size note: every 3 input bytes become 4 characters; the last group is padded to 4 with "=". */
+export function expansionNote(nBytes, nChars) {
+  if (!nBytes) return 'Zero bytes encode to zero characters.';
+  const pct = Math.round(((nChars - nBytes) / nBytes) * 100);
+  return `${nBytes} byte${nBytes === 1 ? '' : 's'} became ${nChars} characters (+${pct}%). Base64 always writes 4 characters for every 3 bytes (4/3 ≈ 1.33, i.e. about 33% larger), and the last group is rounded up to 4 characters with "=" padding, so short inputs grow by more than 33%: the output length is 4 × ⌈n / 3⌉.`;
+}
+
 const NOTE = 'Base64 is an ENCODING, not encryption: there is no key and anyone can decode it. It just makes binary data safe to send as text (e-mail attachments, data: URLs, JSON).';
 
 export default {
@@ -100,33 +134,56 @@ export default {
         visual: groupVisual(bytes, i, out),
       });
     }
-    steps.push({ title: 'Result', explanation: `${bytes.length} bytes became ${out.length} characters (about 33% larger). ${NOTE}`, visual: { type: 'digest', data: { label: 'Base64', hex: out } } });
+    const bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    steps.push({ title: 'Result', explanation: `${expansionNote(bytes.length, out.length)}${bom ? ' The text starts with a byte-order mark (U+FEFF, bytes EF BB BF); it is encoded like any other character.' : ''} ${NOTE}`, visual: { type: 'digest', data: { label: 'Base64', hex: out } }, meta: { inputBytes: bytes.length, outputChars: out.length, bom } });
     return { output: out, outputLabel: 'Base64', steps };
   },
 
   decode({ text }) {
     const { std: clean, urlSafe, addedPadding } = normalizeB64(text);
     const bytes = b64decode(text);
-    let out, badUtf8 = false;
-    try { out = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } catch { out = utf8Decode(bytes); badUtf8 = true; }
-    const notes = [urlSafe ? 'This is base64url (the URL-safe variant): "-" and "_" were read as "+" and "/".' : '', addedPadding ? `${addedPadding} missing "=" padding character(s) were added.` : ''].filter(Boolean).join(' ');
-    const steps = [{ title: 'Decoding needs no key', explanation: `${NOTE}${notes ? ' ' + notes : ''}`, visual: { type: 'digest', data: { label: 'Input', hex: clean || '(empty)' } } }];
-    for (let i = 0, n = 0; i < bytes.length && n < MAX_GROUP_STEPS; i += 3, n++) {
-      steps.push({ title: `${clean.slice((i / 3) * 4, (i / 3) * 4 + 4)} → bytes ${i + 1}–${Math.min(bytes.length, i + 3)}`, explanation: 'Look up each character\'s 6-bit value, join the bits, and cut them back into 8-bit bytes. "=" padding is dropped.', visual: groupVisual(bytes, i, clean) });
-    }
+    // Byte-exact: fatal decoding (no silent U+FFFD) and ignoreBOM so a leading EF BB BF is kept, not swallowed.
+    const decoded = strictUtf8(bytes);
+    const badUtf8 = decoded === null;
     const hex = bytes.map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    const bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    const notes = [urlSafe ? 'This is base64url (the URL-safe variant): "-" and "_" were read as "+" and "/".' : '', addedPadding ? `${addedPadding} missing "=" padding character(s) were added.` : ''].filter(Boolean).join(' ');
+    const steps = [{ title: 'Decoding needs no key', explanation: `${NOTE} Decoding runs the encoding backwards: characters → 6-bit groups (sextets) → 8-bit bytes.${notes ? ' ' + notes : ''}`, visual: { type: 'digest', data: { label: 'Input', hex: clean || '(empty)' } } }];
+    for (let q = 0, n = 0; q < clean.length && n < MAX_GROUP_STEPS; q += 4, n++) {
+      const quad = clean.slice(q, q + 4);
+      const from = (q / 4) * 3;
+      const groupBytes = bytes.slice(from, from + 3);
+      const gp = decodeGroup(quad, groupBytes);
+      const eq = quad.split('=').length - 1;
+      steps.push({
+        title: `${quad} → bytes ${from + 1}–${from + groupBytes.length}`,
+        explanation: `1. Look up each character's index in the Base64 alphabet (0–63). 2. Write each index as 6 bits. 3. Join the ${gp.sextets.filter(Boolean).length * 6} bits and cut them into 8-bit bytes: ${gp.bytes.map((b) => b.hex).join(' ')}.`
+          + (eq ? ` The ${eq} "=" character${eq > 1 ? 's carry' : ' carries'} no data, and the ${gp.droppedBits.length} leftover zero bit${gp.droppedBits.length === 1 ? '' : 's'} after the last full byte ${gp.droppedBits.length === 1 ? 'is' : 'are'} dropped.` : ''),
+        visual: gp.visual,
+        meta: { groupIndex: n, chars: gp.chars, sextets: gp.sextets, bytes: gp.bytes, droppedBits: gp.droppedBits, order: ['chars', 'sextets', 'bytes'] },
+      });
+    }
+    if (bom && !badUtf8) {
+      steps.push({
+        title: 'Starts with a UTF-8 byte-order mark',
+        explanation: 'The first three bytes are EF BB BF, the UTF-8 byte-order mark (BOM, U+FEFF). It is kept in the output so the decoded data is byte-for-byte identical; it is invisible when displayed.',
+        visual: { type: 'digest', data: { label: 'Decoded bytes (hex)', hex } },
+        meta: { bom: true },
+      });
+    }
     if (badUtf8) {
       steps.push({
         title: 'Decoded bytes are not valid UTF-8 text',
-        explanation: `⚠ These ${bytes.length} bytes are not valid UTF-8 text (probably binary data such as an image or a key), so some characters are shown as �. The raw bytes in hex are shown too.`,
+        explanation: `⚠ These ${bytes.length} bytes are not valid UTF-8 text (probably binary data such as an image or a key), so the output is the exact bytes written in hex instead of garbled characters.`,
         visual: { type: 'digest', data: { label: 'Decoded bytes (hex)', hex } },
       });
     }
     steps.push({ title: 'Result',
-      explanation: 'Anyone can do this — so never use Base64 to "hide" passwords or secrets.',
+      explanation: `${clean.length} characters decoded to ${bytes.length} byte${bytes.length === 1 ? '' : 's'}. Anyone can do this — so never use Base64 to "hide" passwords or secrets.`,
       visual: badUtf8
-        ? { type: 'digest', data: { label: 'As text (lossy)', hex: out } }
-        : { type: 'digest', data: { label: 'Decoded text', hex: out || '(empty)' } } });
-    return { output: out, outputLabel: badUtf8 ? `Decoded bytes are not valid UTF-8 text (hex: ${hex})` : 'Decoded text', steps };
+        ? { type: 'digest', data: { label: 'Decoded bytes (hex)', hex } }
+        : { type: 'digest', data: { label: 'Decoded text', hex: decoded || '(empty)' } },
+      meta: { bytes: bytes.length, hex: hex.replace(/ /g, ''), utf8: !badUtf8, bom } });
+    return { output: badUtf8 ? hex.replace(/ /g, '') : decoded, outputLabel: badUtf8 ? `Decoded bytes are not valid UTF-8 text (hex: ${hex})` : (bom ? 'Decoded text (starts with a UTF-8 BOM, kept)' : 'Decoded text'), steps };
   },
 };

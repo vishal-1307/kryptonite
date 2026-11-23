@@ -1,5 +1,5 @@
 import { onlyLetters, indexLetter } from '../lib/text.js';
-import { mod, gcd, modInverseNum } from '../lib/math.js';
+import { mod, bmod, gcd, modInverseNum } from '../lib/math.js';
 
 const MAX_PAIR_STEPS = 16;
 
@@ -9,9 +9,10 @@ export function parseKey(key) {
   let v;
   if (/^[A-Za-z]{4}$/.test(s.replace(/\s+/g, ''))) v = [...onlyLetters(s)].map((c) => c.charCodeAt(0) - 65);
   else {
-    v = s.split(/[\s,;]+/).filter(Boolean).map(Number);
-    if (v.length !== 4 || v.some((x) => !Number.isInteger(x))) throw new Error('Key must be 4 whole numbers (e.g. "3 3 2 5") or a 4-letter word (e.g. "HILL").');
-    v = v.map((x) => mod(x, 26));
+    // Parse with BigInt so huge entries (beyond 2^53) are reduced mod 26 exactly, not after rounding.
+    const parts = s.split(/[\s,;]+/).filter(Boolean);
+    if (parts.length !== 4 || parts.some((x) => !/^[+-]?\d+$/.test(x))) throw new Error('Key must be 4 whole numbers (e.g. "3 3 2 5") or a 4-letter word (e.g. "HILL").');
+    v = parts.map((x) => Number(bmod(BigInt(x), 26n)));
   }
   return [[v[0], v[1]], [v[2], v[3]]];
 }
@@ -24,7 +25,20 @@ export function inverseKey(K) {
   return { det, dInv, adj: adj.map((r) => r.map((x) => mod(x, 26))), inv: adj.map((r) => r.map((x) => mod(x * dInv, 26))) };
 }
 
-const mul = (M, p) => [mod(M[0][0] * p[0] + M[0][1] * p[1], 26), mod(M[1][0] * p[0] + M[1][1] * p[1], 26)];
+/**
+ * Matrix × vector mod 26 with the working shown. Entries are already reduced to 0–25, so every product is
+ * at most 25 × 25 = 625 and every row sum at most 1250: far below 2^53, so Number arithmetic is exact here.
+ * The only place huge numbers can enter is the typed key, which parseKey reduces with BigInt.
+ */
+export function mulDetailed(M, p) {
+  const rows = M.map((row) => {
+    const products = row.map((k, j) => k * p[j]);
+    const sum = products.reduce((a, b) => a + b, 0);
+    return { products, sum, result: mod(sum, 26) };
+  });
+  return { rows, out: rows.map((r) => r.result) };
+}
+const mul = (M, p) => mulDetailed(M, p).out;
 
 export function hill(text, key, decrypting) {
   const K = parseKey(key);
@@ -41,18 +55,22 @@ export function hill(text, key, decrypting) {
   const pairs = [];
   for (let i = 0; i < s.length; i += 2) {
     const p = [s.charCodeAt(i) - 65, s.charCodeAt(i + 1) - 65];
-    pairs.push({ inText: s.slice(i, i + 2), p, c: mul(M, p) });
+    const d = mulDetailed(M, p);
+    pairs.push({ inText: s.slice(i, i + 2), p, c: d.out, rows: d.rows });
   }
-  return { K, info, M, pairs, output: pairs.map((x) => indexLetter(x.c[0]) + indexLetter(x.c[1])).join(''), prepared: s };
+  return { K, info, M, pairs, output: pairs.map((x) => indexLetter(x.c[0]) + indexLetter(x.c[1])).join(''), prepared: s, padded: !decrypting && onlyLetters(text).length % 2 === 1 };
 }
 
 function run({ text, key }, decrypting) {
-  const { K, info, M, pairs, output, prepared } = hill(text, key, decrypting);
+  const { K, info, M, pairs, output, prepared, padded } = hill(text, key, decrypting);
+  const rawKey = String(key).trim();
+  const reduced = !/^[A-Za-z]{4}$/.test(rawKey.replace(/\s+/g, '')) && rawKey.split(/[\s,;]+/).filter(Boolean).some((x) => BigInt(x) < 0n || BigInt(x) > 25n);
   const mat = (label, values) => ({ kind: 'matrix', label, values });
   const vec = (label, v, letters) => ({ kind: 'matrix', label, values: v.map((x, i) => [`${x}`]), sub: letters });
   const steps = [{
     title: 'Key matrix',
-    explanation: `The key is a 2×2 matrix of numbers (A = 0 … Z = 25). Its determinant must have an inverse mod 26, otherwise decryption would be impossible. det = ${K[0][0]}·${K[1][1]} − ${K[0][1]}·${K[1][0]} ≡ ${info.det} (mod 26), and gcd(${info.det}, 26) = 1 ✓`,
+    explanation: `The key is a 2×2 matrix of numbers (A = 0 … Z = 25).${reduced ? ' Your numbers were reduced mod 26 first (exactly, even for very large values).' : ''} The key is only usable if it is invertible mod 26, otherwise decryption would be impossible. A 2×2 matrix is invertible mod 26 exactly when its determinant has an inverse mod 26, i.e. gcd(det, 26) = 1: the determinant must be odd (not divisible by 2) and not divisible by 13. That leaves 12 good values: 1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25. Here det = ${K[0][0]}·${K[1][1]} − ${K[0][1]}·${K[1][0]} ≡ ${info.det} (mod 26), and gcd(${info.det}, 26) = 1 ✓`,
+    meta: { key: K, det: info.det, detInverse: info.dInv, invertible: true },
     visual: [
       { type: 'matrix', data: { items: [mat('K', K)] } },
       { type: 'math', data: { lines: [
@@ -73,7 +91,8 @@ function run({ text, key }, decrypting) {
   }
   steps.push({
     title: 'Split into pairs of numbers',
-    explanation: `Letters are grouped in twos and turned into column vectors.${!decrypting && onlyLetters(text).length % 2 ? ' An X was added to make the length even.' : ''}`,
+    explanation: `Only the letters A–Z are used (spaces, digits and punctuation are removed and capitals are used). They are grouped in twos and turned into column vectors (A = 0 … Z = 25).${padded ? ' The message had an odd number of letters, so a padding X was added at the end to complete the last pair; after decryption it shows up as an extra X.' : ''}`,
+    meta: { prepared, padded, pairs: pairs.map((p) => p.inText) },
     visual: { type: 'textRows', data: { rows: [{ label: 'Pairs', cells: pairs.map((p) => p.inText) }, { label: 'Numbers', cells: pairs.map((p) => p.p.join(',')) }] } },
   });
   const name = decrypting ? 'K⁻¹' : 'K';
@@ -81,7 +100,16 @@ function run({ text, key }, decrypting) {
     const out = indexLetter(x.c[0]) + indexLetter(x.c[1]);
     steps.push({
       title: `${x.inText} → ${out}`,
-      explanation: `Multiply ${name} by the vector [${x.p}] and reduce each result mod 26.`,
+      explanation: `Multiply ${name} by the vector [${x.p}] and reduce each result mod 26.${padded && i === pairs.length - 1 ? ' The X in this pair is padding.' : ''}`,
+      meta: {
+        pairIndex: i,
+        matrix: M,
+        matrixName: name,
+        input: { letters: x.inText, vector: x.p },
+        rows: x.rows.map((r, ri) => ({ terms: M[ri].map((k, j) => ({ k, x: x.p[j], product: r.products[j] })), sum: r.sum, result: r.result, letter: indexLetter(r.result) })),
+        output: { letters: out, vector: x.c },
+        isPadding: [false, !!(padded && i === pairs.length - 1)],
+      },
       visual: [
         { type: 'matrix', data: { items: [mat(name, M), { kind: 'op', text: '×' }, vec(x.inText, x.p), { kind: 'op', text: '=' }, vec(out, x.c)] } },
         { type: 'math', data: { lines: [

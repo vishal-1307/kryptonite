@@ -1,4 +1,4 @@
-import { bytesToHex, hexToBytes, utf8Encode, utf8Decode, toHex } from '../lib/text.js';
+import { bytesToHex, hexToBytes, utf8Encode, toHex } from '../lib/text.js';
 
 // ---------- AES-128 primitives (FIPS-197). State bytes are stored column-major: index = row + 4*col.
 
@@ -138,6 +138,7 @@ function opStep(e, decrypting) {
   return { title: `${roundLabel} · ${e.op}`, explanation: EXPLAIN[e.op] + extra, visual };
 }
 
+const LIMITS = 'Limits of this demo: it encrypts exactly ONE 16-byte block with the raw block cipher (no mode of operation, which is the same as ECB for one block), uses no IV/nonce and no authentication tag. Short text is padded to 16 bytes (zero bytes by default, or PKCS#7 if chosen). Do not use it to protect real data.';
 const KDF_NOTE = 'Real systems never use a typed password directly as an AES key; they derive the 16 bytes with a key-derivation function such as PBKDF2, scrypt or Argon2.';
 
 /** Parse the 128-bit key. Hex: exactly 32 hex characters. Text: exactly 16 bytes (UTF-8). No silent padding. */
@@ -153,38 +154,81 @@ export function parseKey(value, keyFormat = 'hex') {
   return hexToBytes(clean);
 }
 
-/** Parse the plaintext (encrypt) or ciphertext (decrypt) block. Returns { bytes, padded }. */
-export function parseBlock(value, format, what) {
+/** Strict UTF-8 decode (null if the bytes are not valid UTF-8). Keeps a leading BOM (byte-exact). */
+export function strictUtf8(bytes) {
+  try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(new Uint8Array(bytes)); } catch { return null; }
+}
+
+/**
+ * Parse the plaintext (encrypt) or ciphertext (decrypt) block. Returns { bytes, padded, textBytes, textChars }.
+ * Text is converted to UTF-8 bytes; lengths are always measured in BYTES (é is 2 bytes, 🔐 is 4).
+ * padding: 'zero' (demo default: append 00 bytes, ambiguous) or 'pkcs7' (append N bytes of value N; needs ≤ 15 bytes here).
+ */
+export function parseBlock(value, format, what, padding = 'zero') {
   if (format === 'text') {
     const bytes = utf8Encode(value);
+    const chars = [...String(value)].length;
     if (!bytes.length) throw new Error('Enter a message');
-    if (bytes.length > 16) throw new Error(`${what} is ${bytes.length} bytes; this single-block demo allows at most 16 bytes (16 plain English characters).`);
-    return { bytes: bytes.concat(new Array(16 - bytes.length).fill(0)), padded: 16 - bytes.length };
+    const charNote = chars !== bytes.length ? ` (${chars} character${chars === 1 ? '' : 's'}, but some take more than one byte in UTF-8)` : '';
+    if (bytes.length > 16) throw new Error(`${what} is ${bytes.length} bytes${charNote}; this single-block demo allows at most 16 bytes (16 plain English characters).`);
+    if (padding === 'pkcs7') {
+      if (bytes.length > 15) throw new Error(`${what} is ${bytes.length} bytes${charNote}. PKCS#7 always adds at least one padding byte, so in this single-block demo the text can be at most 15 bytes.`);
+      const n = 16 - bytes.length;
+      return { bytes: bytes.concat(new Array(n).fill(n)), padded: n, padding, textBytes: bytes.length, textChars: chars };
+    }
+    return { bytes: bytes.concat(new Array(16 - bytes.length).fill(0)), padded: 16 - bytes.length, padding: 'zero', textBytes: bytes.length, textChars: chars };
   }
   const clean = String(value).replace(/\s+/g, '');
   if (!/^[0-9a-fA-F]*$/.test(clean)) throw new Error(`${what} must be hex (0–9, a–f).${what === 'The plaintext' ? ' To type words, switch "Plaintext format" to Text.' : ''}`);
   if (clean.length !== 32) throw new Error(`${what} must be exactly 32 hex characters (16 bytes); it has ${clean.length}.`);
-  return { bytes: hexToBytes(clean), padded: 0 };
+  return { bytes: hexToBytes(clean), padded: 0, padding: 'none', textBytes: 16, textChars: null };
+}
+
+/**
+ * Turn decrypted block bytes back into what the student typed (text format only).
+ * zero:  strip trailing 00 bytes (ambiguous: a real trailing 00 is removed too).
+ * pkcs7: strip exactly N bytes of value N, so genuine trailing 00 bytes are preserved.
+ * If the remaining bytes are not valid UTF-8, the output is the raw hex of all 16 bytes instead.
+ * Returns { text, hex, stripped, utf8Ok, paddingOk }.
+ */
+export function unpadText(output, padding = 'zero') {
+  let end = 16, paddingOk = true;
+  if (padding === 'pkcs7') {
+    const n = output[15];
+    if (n >= 1 && n <= 16 && output.slice(16 - n).every((b) => b === n)) end = 16 - n;
+    else paddingOk = false;
+  } else {
+    while (end > 0 && output[end - 1] === 0) end--;
+  }
+  const text = paddingOk ? strictUtf8(output.slice(0, end)) : null;
+  return { text, hex: bytesToHex(output), stripped: paddingOk ? 16 - end : 0, utf8Ok: text !== null, paddingOk };
 }
 
 const bitsDiffer = (x, y) => x.reduce((n, b, i) => { let v = b ^ y[i]; while (v) { n += v & 1; v >>= 1; } return n; }, 0);
 
-function run({ block, key, format, keyFormat = 'hex' }, decrypting) {
+function run({ block, key, format, keyFormat = 'hex', padding = 'zero' }, decrypting) {
   const k = parseKey(key, keyFormat);
-  const { bytes: input, padded } = decrypting ? parseBlock(block, 'hex', 'The ciphertext') : parseBlock(block, format, 'The plaintext');
+  const parsed = decrypting ? parseBlock(block, 'hex', 'The ciphertext') : parseBlock(block, format, 'The plaintext', padding);
+  const { bytes: input, padded } = parsed;
   const { output, log, roundKeys } = decrypting ? aesDecryptBlock(input, k) : aesEncryptBlock(input, k);
   const { w, trace } = expandKey(k);
   const t4 = trace[4];
   const hexWord = (b) => b.map(toHex).join(' ');
   const steps = [{
     title: decrypting ? 'Load the ciphertext into the state' : 'Load the plaintext into the state',
-    explanation: `AES works on a 4×4 grid of bytes called the state, filled column by column. The key is always exactly 16 bytes (128 bits).${keyFormat === 'text' ? ` Your text key was converted to its 16 UTF-8 bytes. ${KDF_NOTE}` : ''}`,
+    explanation: `AES works on a 4×4 grid of bytes called the state, filled column by column. A block is always exactly 16 bytes (128 bits) and so is the AES-128 key.`
+      + (!decrypting && format === 'text' ? ` Your text is ${parsed.textChars} character${parsed.textChars === 1 ? '' : 's'} = ${parsed.textBytes} byte${parsed.textBytes === 1 ? '' : 's'} in UTF-8${parsed.textChars !== parsed.textBytes ? ' (letters outside plain English take 2–4 bytes each)' : ''}.` : '')
+      + `${keyFormat === 'text' ? ` Your text key was converted to its 16 UTF-8 bytes. ${KDF_NOTE}` : ''}`
+      + ` ${LIMITS}`,
+    meta: { inputBytes: input.length, textBytes: parsed.textBytes, textChars: parsed.textChars, padding: parsed.padding, paddedBytes: padded },
     visual: { type: 'byteGrid', data: { items: [g(decrypting ? 'Ciphertext' : 'Plaintext', input, ALL), { op: ' ' }, g('Key', k, [], 'key')] } },
   }];
   if (padded) {
     steps.push({
-      title: `Padding: ${padded} zero byte${padded === 1 ? '' : 's'} added`,
-      explanation: `⚠ Your text is ${16 - padded} bytes but AES needs a full 16-byte block, so this demo appends ${padded} bytes of 00. Zero padding is ambiguous (a real trailing 00 byte cannot be told apart from padding). Real systems use PKCS#7 padding, or a mode such as GCM/CTR that needs no padding.`,
+      title: parsed.padding === 'pkcs7' ? `Padding: ${padded} PKCS#7 byte${padded === 1 ? '' : 's'} (value ${toHex(padded)}) added` : `Padding: ${padded} zero byte${padded === 1 ? '' : 's'} added`,
+      explanation: parsed.padding === 'pkcs7'
+        ? `Your text is ${16 - padded} bytes but AES needs a full 16-byte block. PKCS#7 appends ${padded} bytes that each have the value ${padded} (${toHex(padded)}), so after decryption exactly that many bytes are removed and any genuine 00 bytes in your data are kept.`
+        : `⚠ Your text is ${16 - padded} bytes but AES needs a full 16-byte block, so this demo appends ${padded} bytes of 00. Zero padding is ambiguous (a real trailing 00 byte cannot be told apart from padding). Choose "PKCS#7" padding to avoid that; real systems use PKCS#7, or a mode such as GCM/CTR that needs no padding.`,
       visual: { type: 'byteGrid', data: { items: [g('Plaintext + padding', input, Array.from({ length: padded }, (_, i) => 16 - padded + i))] } },
     });
   }
@@ -207,18 +251,32 @@ function run({ block, key, format, keyFormat = 'hex' }, decrypting) {
   log.forEach((e) => steps.push(opStep(e, decrypting)));
   let outputText = bytesToHex(output);
   let outputLabel = decrypting ? 'Plaintext (hex)' : 'Ciphertext (hex)';
-  let stripped = 0;
+  let stripped = 0, textNote = '';
   if (decrypting && format === 'text') {
-    let end = 16; while (end > 0 && output[end - 1] === 0) end--;
-    stripped = 16 - end;
-    outputText = utf8Decode(output.slice(0, end));
-    outputLabel = `Plaintext (hex ${bytesToHex(output)})`;
+    const u = unpadText(output, padding);
+    if (!u.paddingOk) {
+      outputLabel = 'Plaintext (hex): the last bytes are not valid PKCS#7 padding (wrong key, wrong padding choice, or the block was not text)';
+      textNote = ' ⚠ The block does not end in valid PKCS#7 padding, so nothing was removed and the raw bytes are shown in hex.';
+    } else if (!u.utf8Ok) {
+      outputLabel = 'Plaintext (hex): the decrypted bytes are not valid UTF-8 text';
+      textNote = ' ⚠ The decrypted bytes are not valid UTF-8 text (wrong key, or the data was not text), so the exact bytes are shown in hex instead of garbled characters.';
+    } else {
+      stripped = u.stripped;
+      outputText = u.text;
+      outputLabel = `Plaintext (hex ${bytesToHex(output)})`;
+      textNote = stripped
+        ? (padding === 'pkcs7'
+          ? ` ${stripped} PKCS#7 padding byte(s) of value ${toHex(stripped)} were removed; any genuine 00 bytes in the message are kept.`
+          : ` ${stripped} trailing 00 byte(s) were removed as demo zero padding. With zero padding a genuine trailing 00 would also be lost; the exact 16 bytes are always in the hex label, and PKCS#7 padding avoids the problem.`)
+        : '';
+    }
   }
   steps.push({
     title: decrypting ? 'Plaintext recovered' : 'Ciphertext',
     explanation: decrypting
-      ? `Running the inverse steps in reverse order with the same round keys gives back the original block.${stripped ? ` ${stripped} trailing 00 byte(s) were removed as demo padding; with zero padding a genuine trailing 00 would also be lost, which is why real systems use PKCS#7.` : ''}`
+      ? `Running the inverse steps in reverse order with the same round keys gives back the original block.${textNote}`
       : 'After 10 rounds the state is the ciphertext.',
+    meta: { outputHex: bytesToHex(output), strippedBytes: stripped },
     visual: { type: 'byteGrid', data: { items: [g(decrypting ? 'Plaintext' : 'Ciphertext', output, ALL, 'out')] } },
   });
   if (!decrypting) {
@@ -249,7 +307,7 @@ export default {
   id: 'aes',
   name: 'AES-128',
   category: 'Symmetric',
-  description: 'The modern standard block cipher: 10 rounds of SubBytes, ShiftRows, MixColumns and AddRoundKey on a 4×4 byte state.',
+  description: 'The modern standard block cipher: 10 rounds of SubBytes, ShiftRows, MixColumns and AddRoundKey on a 4×4 byte state. Educational single-block demo (no mode of operation, IV or authentication); the defaults are FIPS-197 test values, not real keys.',
   ioField: 'block',
   examples: [
     { label: 'FIPS-197 Appendix B', values: { format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' } },
@@ -257,16 +315,17 @@ export default {
     { label: 'Text example', values: { format: 'text', block: 'Two One Nine Two', keyFormat: 'text', key: 'Thats my Kung Fu' } },
   ],
   inputs: [
-    { id: 'format', label: 'Plaintext format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (32 hex characters)' }, { value: 'text', label: 'Text (up to 16 characters)' }], help: 'Ciphertext is always hex' },
+    { id: 'format', label: 'Plaintext format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (32 hex characters = 16 bytes)' }, { value: 'text', label: 'Text (up to 16 bytes in UTF-8)' }], help: 'Ciphertext is always hex. Plain English letters are 1 byte each; é is 2, 🔐 is 4.' },
     { id: 'block', label: 'Plaintext / ciphertext block', type: 'textarea', default: '3243f6a8885a308d313198a2e0370734', help: 'Defaults are the FIPS-197 Appendix B test vector' },
-    { id: 'keyFormat', label: 'Key format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (exactly 32 hex characters)' }, { value: 'text', label: 'Text (exactly 16 characters)' }] },
+    { id: 'keyFormat', label: 'Key format', type: 'select', default: 'hex', options: [{ value: 'hex', label: 'Hex (exactly 32 hex characters = 16 bytes)' }, { value: 'text', label: 'Text (exactly 16 bytes in UTF-8)' }] },
+    { id: 'padding', label: 'Padding (text only)', type: 'select', default: 'zero', options: [{ value: 'zero', label: 'Zero bytes (demo, ambiguous)' }, { value: 'pkcs7', label: 'PKCS#7 (text up to 15 bytes)' }], help: 'Only used when the plaintext format is Text. Choose the same padding to decrypt.' },
     { id: 'key', label: 'Key (128-bit)', type: 'text', default: '2b7e151628aed2a6abf7158809cf4f3c',
       validate: (v, values) => { try { parseKey(v, values.keyFormat); return null; } catch (e) { return e.message; } } },
   ],
   validate: (values, action) => {
     try {
       if (action === 'decrypt') parseBlock(values.block, 'hex', 'The ciphertext');
-      else parseBlock(values.block, values.format, 'The plaintext');
+      else parseBlock(values.block, values.format, 'The plaintext', values.padding);
       return null;
     } catch (e) { return e.message; }
   },

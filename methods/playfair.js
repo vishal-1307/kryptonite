@@ -1,6 +1,7 @@
 import { onlyLetters } from '../lib/text.js';
 
 const MAX_PAIR_STEPS = 20;
+const LOSSY = 'Decryption does not always give back the exact original text: spaces, punctuation and lower case are lost, every J comes back as I, and the filler X/Q letters stay in until a human removes them (a real X next to a filler cannot be told apart automatically).';
 
 /** Build the 5×5 key square (I and J share a cell). */
 export function keySquare(key) {
@@ -16,19 +17,31 @@ export function keySquare(key) {
   return { grid, pos, keyLetters: [...new Set(onlyLetters(key).replace(/J/g, 'I'))] };
 }
 
-/** Split plaintext into digraphs, inserting X between doubled letters and padding with X. */
-export function prepare(text) {
-  const s = onlyLetters(text).replace(/J/g, 'I');
-  const pairs = [];
+/**
+ * Split plaintext into digraphs with details: which second letters are inserted fillers and why.
+ * Returns { pairs: [[a,b]], fillers: [{ pair, letter, reason: 'double' | 'odd' }], jCount, dropped }.
+ */
+export function prepareDetailed(text) {
+  const raw = String(text ?? '');
+  const s = onlyLetters(raw).replace(/J/g, 'I');
+  const pairs = [], fillers = [];
   let i = 0;
   while (i < s.length) {
     const a = s[i];
-    let b = s[i + 1];
-    if (b === undefined) { pairs.push([a, a === 'X' ? 'Q' : 'X']); i += 1; }
-    else if (a === b) { pairs.push([a, a === 'X' ? 'Q' : 'X']); i += 1; }
+    const b = s[i + 1];
+    const filler = a === 'X' ? 'Q' : 'X';
+    if (b === undefined) { fillers.push({ pair: pairs.length, letter: filler, reason: 'odd' }); pairs.push([a, filler]); i += 1; }
+    else if (a === b) { fillers.push({ pair: pairs.length, letter: filler, reason: 'double', doubled: a }); pairs.push([a, filler]); i += 1; }
     else { pairs.push([a, b]); i += 2; }
   }
-  return pairs;
+  const jCount = (raw.match(/[Jj]/g) || []).length;
+  const dropped = [...raw].filter((ch) => !/[A-Za-z]/.test(ch)).length;
+  return { pairs, fillers, jCount, dropped };
+}
+
+/** Split plaintext into digraphs, inserting X between doubled letters and padding with X. */
+export function prepare(text) {
+  return prepareDetailed(text).pairs;
 }
 
 function transformPair([a, b], sq, dir) {
@@ -45,7 +58,7 @@ function transformPair([a, b], sq, dir) {
 function run({ text, key }, decrypting) {
   if (!String(text ?? '').length) throw new Error('Enter a message');
   const sq = keySquare(key);
-  let pairs;
+  let pairs, fillers = [], jCount = 0, dropped = 0;
   if (decrypting) {
     const s = onlyLetters(text).replace(/J/g, 'I');
     if (s.length % 2) throw new Error('Playfair ciphertext must have an even number of letters.');
@@ -55,13 +68,18 @@ function run({ text, key }, decrypting) {
       pairs.push([s[i], s[i + 1]]);
     }
   } else {
-    pairs = prepare(text);
+    ({ pairs, fillers, jCount, dropped } = prepareDetailed(text));
     if (!pairs.length) throw new Error('Enter a message containing letters.');
   }
   const dir = decrypting ? -1 : 1;
   const results = pairs.map((p) => transformPair(p, sq, dir));
   const output = results.map((r) => r.out.join('')).join('');
   const pairCells = (arr) => arr.map((p) => p.join(''));
+  const fillerAt = new Map(fillers.map((f) => [f.pair, f]));
+  const fillerPairs = fillers.map((f) => f.pair);
+  const fillerText = fillers.map((f) => (f.reason === 'double'
+    ? `${f.letter} between the two ${f.doubled}s (pair ${f.pair + 1})`
+    : `${f.letter} after the last letter to make the length even (pair ${f.pair + 1})`)).join('; ');
 
   const steps = [{
     title: 'Build the 5×5 key square',
@@ -79,14 +97,20 @@ function run({ text, key }, decrypting) {
     title: decrypting ? 'Split the ciphertext into pairs' : 'Split the message into pairs',
     explanation: decrypting
       ? 'Ciphertext is read two letters at a time.'
-      : 'Letters are taken two at a time. J becomes I, a filler X is inserted between doubled letters in a pair (e.g. "EE" → "EX E…"), and an X pads an odd final letter. If the doubled or final letter is itself X, the filler is Q instead (e.g. "XX" → "XQ XQ").',
-    visual: { type: 'textRows', data: { rows: [{ label: 'Pairs', cells: pairCells(pairs) }] } },
+      : 'Letters are taken two at a time. Only A–Z are used: spaces, digits and punctuation are dropped and capitals are used throughout. J becomes I (they share one cell). A pair may not contain the same letter twice, so a filler X is inserted between doubled letters (e.g. "EE" → "EX E…"), and an X pads an odd final letter. If the doubled or final letter is itself X, the filler is Q instead (e.g. "XX" → "XQ XQ").'
+        + (fillers.length ? ` Fillers added here: ${fillerText}.` : ' No filler letters were needed for this message.')
+        + (jCount ? ` ${jCount} J${jCount === 1 ? ' was' : 's were'} changed to I.` : '')
+        + (dropped ? ` ${dropped} non-letter character${dropped === 1 ? ' was' : 's were'} dropped.` : ''),
+    visual: { type: 'textRows', data: { rows: [{ label: 'Pairs', cells: pairCells(pairs) }], fillerPairs } },
+    meta: { pairs: pairCells(pairs), fillers, jToI: jCount, droppedChars: dropped },
   });
   results.slice(0, MAX_PAIR_STEPS).forEach((r, i) => {
     const [a, b] = pairs[i];
+    const f = fillerAt.get(i);
     steps.push({
       title: `${a}${b} → ${r.out.join('')} (${r.rule})`,
-      explanation: r.why,
+      explanation: r.why + (f ? ` (The ${f.letter} in this pair is a filler letter, not part of the original message.)` : ''),
+      meta: { pairIndex: i, pair: [a, b], out: r.out, rule: r.rule, inCells: [sq.pos[a], sq.pos[b]], outCells: r.cells, isFiller: [false, !!f] },
       visual: [
         { type: 'grid', data: { cells: sq.grid, primary: [sq.pos[a], sq.pos[b]], secondary: r.cells, caption: r.rule } },
         { type: 'textRows', data: { rows: [
@@ -100,8 +124,8 @@ function run({ text, key }, decrypting) {
     title: 'Result',
     explanation: (results.length > MAX_PAIR_STEPS ? `The first ${MAX_PAIR_STEPS} pairs were shown; the rest follow the same three rules. ` : '')
       + (decrypting
-        ? 'Remove the filler X (or Q) letters that do not make sense to read the original message. Any J in the original comes back as I, because I and J share a cell.'
-        : 'Encrypting pairs instead of single letters hides single-letter frequencies, which made Playfair much stronger than Caesar in its time. It can still be broken by digraph (letter-pair) frequency analysis on longer messages, e.g. "TH" and "HE" are very common in English.'),
+        ? `${LOSSY} Read the result and remove the filler X (or Q) letters that do not make sense.`
+        : `${LOSSY} Encrypting pairs instead of single letters hides single-letter frequencies, which made Playfair much stronger than Caesar in its time. It can still be broken by digraph (letter-pair) frequency analysis on longer messages, e.g. "TH" and "HE" are very common in English.`),
     visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: pairCells(pairs) }, { label: 'Out', cells: results.map((x) => x.out.join('')) }] } },
   });
   return { output, steps };

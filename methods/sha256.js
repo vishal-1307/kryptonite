@@ -66,6 +66,26 @@ const bitDiff = (h1, h2) => {
 };
 
 const MAX_BLOCKS_SHOWN = 2;
+/** Rounds whose registers are listed in the "selected rounds" step (0-based t). */
+export const SELECTED_ROUNDS = [0, 1, 2, 3, 15, 31, 47, 63];
+const REG = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+/** Count differing bits between two byte arrays of equal length. */
+export function bitDiffBytes(x, y) {
+  let n = 0;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { let v = (x[i] ?? 0) ^ (y[i] ?? 0); while (v) { n += v & 1; v >>= 1; } }
+  return n;
+}
+
+/**
+ * The avalanche demo input: flip exactly ONE bit (the lowest bit of the last byte).
+ * An empty message has no bit to flip, so it returns null and the demo compares with a 1-byte input instead.
+ */
+export function flipOneBit(bytes) {
+  if (!bytes.length) return null;
+  const i = bytes.length - 1;
+  return { bytes: bytes.slice(0, -1).concat([bytes[i] ^ 1]), byteIndex: i, bitIndex: 0 };
+}
 
 export default {
   id: 'sha256',
@@ -113,6 +133,7 @@ export default {
       steps.push({
         title: `Compression round 0${tag}`,
         explanation: 'Each round computes two temporary words and shifts the eight working variables a…h down by one. Σ are rotations, Ch picks bits from f or g depending on e, Maj takes the majority bit of a, b, c, and Kₜ is a round constant (the first 32 bits of the fractional part of the cube root of the (t+1)-th prime, because t starts at 0).',
+        meta: { block: bi, round: 0, before: Object.fromEntries(REG.map((r, i) => [r, w32(blk.before[i])])), after: Object.fromEntries(REG.map((r, i) => [r, w32(r0.vars[i])])), T1: w32(r0.T1), T2: w32(r0.T2) },
         visual: { type: 'math', data: { lines: [
           { expr: 'T1 = h + Σ1(e) + Ch(e,f,g) + K0 + W0', note: `= ${w32(r0.T1)}` },
           { expr: 'T2 = Σ0(a) + Maj(a,b,c)', note: `= ${w32(r0.T2)}` },
@@ -120,10 +141,19 @@ export default {
           { expr: 'd←c, c←b, b←a, a←T1+T2', note: `a = ${w32(r0.vars[0])}`, highlight: true },
         ] } },
       });
+      const regs = (vars) => Object.fromEntries(REG.map((r, i) => [r, w32(vars[i])]));
+      const sel = SELECTED_ROUNDS.map((t) => ({ t, before: t === 0 ? regs(blk.before) : regs(blk.rounds[t - 1].vars), after: regs(blk.rounds[t].vars), T1: w32(blk.rounds[t].T1), T2: w32(blk.rounds[t].T2) }));
+      steps.push({
+        title: `Registers a…h in selected rounds${tag}`,
+        explanation: 'Each row shows the eight working registers after round t. In every round only two registers get brand-new values: a = T1 + T2 and e = d + T1. The other six just move down one place (b←a, c←b, d←c, f←e, g←f, h←g), so the new a and e "flow" diagonally through the table over the next rounds.',
+        visual: { type: 'table', data: { mono: true, compact: true, headers: ['t', 'a (new)', 'b', 'c', 'd', 'e (new)', 'f', 'g', 'h'], rows: sel.map((r) => [r.t, ...REG.map((k) => r.after[k])]), highlightRows: [], highlightCols: [1, 5] } },
+        meta: { block: bi, rounds: sel, newRegisters: ['a', 'e'], shiftedRegisters: { b: 'a', c: 'b', d: 'c', f: 'e', g: 'f', h: 'g' } },
+      });
       steps.push({
         title: `All 64 rounds${tag}`,
         explanation: 'The same round function runs 64 times, each with its own Wₜ and Kₜ. Every bit of the message ends up affecting every working variable.',
         visual: { type: 'table', data: { mono: true, compact: true, scroll: true, headers: ['t', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'], rows: blk.rounds.map((r) => [r.t, ...r.vars.map(w32)]), highlightRows: [63] } },
+        meta: { block: bi, registers: blk.rounds.map((r) => ({ t: r.t, ...regs(r.vars) })) },
       });
       steps.push({
         title: `Add to the hash${tag}`,
@@ -137,12 +167,19 @@ export default {
       explanation: 'Concatenate H₀…H₇ to get the 256-bit (64 hex character) hash. There is no key and no way to "decrypt" it back to the message.',
       visual: { type: 'digest', data: { label: 'SHA-256', hex: digest } },
     });
-    const altBytes = bytes.length ? bytes.slice(0, -1).concat([bytes[bytes.length - 1] ^ 1]) : [0x01];
+    const flip = flipOneBit(bytes);
+    const altBytes = flip ? flip.bytes : [0x01];
     const alt = sha256Trace(altBytes).digest;
+    const outDiff = bitDiff(digest, alt);
+    const bin = (b) => b.toString(2).padStart(8, '0');
+    const inDiff = flip ? bitDiffBytes(bytes, altBytes) : null;
     steps.push({
       title: 'Avalanche effect',
-      explanation: `Flipping just one bit of the input (${bytes.length ? `last byte ${toHex(bytes[bytes.length - 1])} → ${toHex(altBytes[altBytes.length - 1])}` : 'adding byte 01'}) changes ${bitDiff(digest, alt)} of the 256 output bits — about half, as a good hash should.`,
-      visual: [{ type: 'digest', data: { label: 'Original', hex: digest } }, { type: 'digest', data: { label: '1 bit changed', hex: alt, compare: digest } }],
+      explanation: flip
+        ? `Flip exactly one bit of the input: the lowest bit of byte ${flip.byteIndex + 1} (${toHex(bytes[flip.byteIndex])} = ${bin(bytes[flip.byteIndex])} → ${toHex(altBytes[flip.byteIndex])} = ${bin(altBytes[flip.byteIndex])}). Inputs differ in ${inDiff} bit; the digests differ in ${outDiff} of the 256 output bits — about half, as a good hash should.`
+        : `The input is empty, so there is no bit to flip. Instead compare with the 1-byte input 01 (a different length, not a one-bit change): the digests differ in ${outDiff} of the 256 output bits.`,
+      visual: [{ type: 'digest', data: { label: 'Original', hex: digest } }, { type: 'digest', data: { label: flip ? '1 input bit flipped' : 'Input = byte 01', hex: alt, compare: digest } }],
+      meta: { inputBitsChanged: inDiff, outputBitsChanged: outDiff, flippedByte: flip ? flip.byteIndex : null, flippedBit: flip ? flip.bitIndex : null },
     });
     steps.push({
       title: 'Security notes',
