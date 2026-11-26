@@ -7,7 +7,6 @@ source file for the chosen language. Nothing is executed; files are shown, highl
 {
   "<methodId>": {                       // registry id, e.g. "aes"; a { "methods": { … } } wrapper is also accepted
     "folder":  "aes128",                // optional: shown as "Run these inside code/aes128/"
-    "warning": "Educational code …",    // optional: shown above the code
     "python":  { …entry },              // aliases: python3, py
     "cpp":     { …entry },              // aliases: c++, cpp17, c++17, cxx
     "pythonLibrary": { …entry }         // optional third choice, labelled "Python (library)"; shown only when present

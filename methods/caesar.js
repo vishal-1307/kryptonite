@@ -3,25 +3,8 @@ import { mod } from '../lib/math.js';
 
 const MAX_LETTER_STEPS = 24; // keep long messages watchable
 const PASS_NOTE = 'Only the letters A–Z / a–z are shifted (case is kept). Everything else (spaces, digits, punctuation, accented or non-Latin letters) is copied to the output unchanged and in the same position.';
-const MIN_LETTERS_FOR_STATS = 20; // below this, frequency scores are unreliable
-
-// English letter frequencies (%), used to score brute-force candidates.
-const EN = [8.17,1.49,2.78,4.25,12.7,2.23,2.02,6.09,6.97,0.15,0.77,4.03,2.41,6.75,7.51,1.93,0.1,5.99,6.33,9.06,2.76,0.98,2.36,0.15,1.97,0.07];
-
 export function shiftText(text, k) {
   return [...text].map((ch) => (isLetter(ch) ? indexLetter(letterIndex(ch) + k, ch === ch.toLowerCase()) : ch)).join('');
-}
-
-/** Chi-squared distance from English (lower = more English-like). */
-export function chiSquared(text) {
-  const counts = new Array(26).fill(0);
-  let total = 0;
-  for (const ch of text) if (isLetter(ch)) { counts[letterIndex(ch)]++; total++; }
-  if (!total) return Infinity;
-  return counts.reduce((sum, c, i) => {
-    const expected = (EN[i] / 100) * total;
-    return sum + ((c - expected) ** 2) / expected;
-  }, 0);
 }
 
 function run(text, shift, decrypting) {
@@ -74,7 +57,7 @@ function run(text, shift, decrypting) {
     explanation: (letters > MAX_LETTER_STEPS
       ? `The first ${MAX_LETTER_STEPS} letters were shown one by one; the other ${letters - MAX_LETTER_STEPS} are shifted exactly the same way. `
       : '')
-      + 'Every letter was shifted by the same amount. That is the weakness: there are only 25 useful keys, so an attacker can simply try them all (see "Brute-force attack").'
+      + 'Every letter was shifted by the same amount, so there are only 25 useful keys.'
       + (/[^\x00-\x7F]/.test(text) ? ' Note: only the English letters A–Z are shifted; accented or non-Latin letters (é, अ …) pass through unchanged.' : ''),
     visual: { type: 'textRows', data: { rows: [
       { label: decrypting ? 'Cipher' : 'Plain', cells: chars },
@@ -99,49 +82,8 @@ export default {
   actions: [
     { id: 'encrypt', label: 'Encrypt' },
     { id: 'decrypt', label: 'Decrypt' },
-    { id: 'attack', label: 'Brute-force attack' },
   ],
   encrypt: ({ text, shift }) => run(text, shift, false),
   decrypt: ({ text, shift }) => run(text, shift, true),
 
-  /** Try all 26 shifts and rank them by how English-like they look. */
-  attack({ text }) {
-    if (!/[A-Za-z]/.test(text)) throw new Error('Enter some ciphertext containing letters to attack.');
-    const rows = [];
-    for (let k = 0; k < 26; k++) {
-      const guess = shiftText(text, mod(-k, 26));
-      rows.push({ k, guess, score: chiSquared(guess) });
-    }
-    const ranked = rows.slice().sort((a, b) => a.score - b.score);
-    const top = ranked.slice(0, 3);
-    const letters = [...text].filter((c) => /[A-Za-z]/.test(c)).length;
-    const short = letters < MIN_LETTERS_FOR_STATS;
-    const table = (upto, hi) => ({ type: 'table', data: {
-      headers: ['Key', 'Decryption attempt', 'χ² vs English (lower = better)'],
-      rows: rows.slice(0, upto).map((r) => [r.k, r.guess.length > 48 ? r.guess.slice(0, 48) + '…' : r.guess, r.score.toFixed(1)]),
-      highlightRows: hi,
-    } });
-    const steps = [{
-      title: 'Only 26 possible keys',
-      explanation: 'An attacker who does not know the shift just tries every one of them. A computer does this instantly.',
-      visual: table(0, []),
-    }];
-    for (let k = 0; k < 26; k++) {
-      steps.push({ title: `Try key ${k}`, explanation: `Shift every letter back by ${k}. The χ² score compares the letter frequencies with normal English; lower means more English-like.`, visual: table(k + 1, [k]) });
-    }
-    steps.push({
-      title: short ? `Top candidates (text too short to be sure)` : `Top candidates: key ${top[0].k} looks best`,
-      explanation: (short
-        ? `⚠ Only ${letters} letters: letter-frequency statistics are unreliable for short text, so the lowest score may be wrong. Read the top candidates (and the full table) and pick the one that makes sense.`
-        : `Key ${top[0].k} gives the most English-like letter frequencies. Always read the candidate to confirm.`)
-        + ' This frequency-analysis attack is why Caesar is never used for real security.',
-      visual: [
-        { type: 'math', data: { lines: top.map((r, i) => ({ expr: `#${i + 1}  key ${r.k}: ${r.guess.length > 40 ? r.guess.slice(0, 40) + '…' : r.guess}`, note: `χ² = ${r.score.toFixed(1)}`, highlight: i === 0 && !short })) } },
-        table(26, top.map((r) => r.k)),
-      ],
-    });
-    const output = short ? top.map((r) => `key ${r.k}: ${r.guess}`).join('  ·  ') : top[0].guess;
-    const outputLabel = short ? `Text is short (${letters} letters) — top 3 candidates, check which reads correctly` : `Most likely plaintext (key ${top[0].k}; next best: key ${top[1].k}, key ${top[2].k})`;
-    return { output, outputLabel, steps, candidates: top.map(({ k, guess, score }) => ({ k, guess, score })) };
-  },
 };

@@ -39,7 +39,7 @@ export function normalizeEntry(e) {
   };
 }
 
-/** Method-level extras (e.g. the "educational code" warning). */
+/** Method-level extras from the manifest (optional warning, folder, …). */
 export function methodInfo(manifest, methodId) {
   const root = manifest && typeof manifest === 'object' ? (manifest.methods && typeof manifest.methods === 'object' ? manifest.methods : manifest) : {};
   const m = root[methodId];

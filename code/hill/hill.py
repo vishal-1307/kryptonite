@@ -2,9 +2,6 @@
 """
 Kryptonite - Hill cipher, 2x2 (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY. Hill is linear and falls to a known-plaintext attack.
-Never use it to protect real data; use a vetted library instead.
-
 Usage:
     python3 hill.py                         # sample: encrypt HELP with key "3 3 2 5"
     python3 hill.py encrypt "short example" HILL

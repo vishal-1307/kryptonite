@@ -68,7 +68,7 @@ export default {
   id: 'diffiehellman',
   name: 'Diffie–Hellman',
   category: 'Key Exchange',
-  description: 'Two people agree on a shared secret over a public channel without ever sending the secret. Educational demo with tiny demonstration numbers; real systems use 2048-bit groups or elliptic curves (X25519) and authenticate the exchange.',
+  description: 'Two people agree on a shared secret over a public channel without ever sending the secret. This page uses small groups so each step is visible; deployed systems use much larger groups or elliptic curves (X25519) and authenticate the exchange.',
   inputs: [
     { id: 'p', label: 'Prime modulus p', type: 'number', default: 23, min: 3 },
     { id: 'g', label: 'Generator g', type: 'number', default: 5, min: 2 },

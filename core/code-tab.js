@@ -1,8 +1,8 @@
 import { h } from './dom.js';
 import { ICON } from './icons.js';
-import { LANGS, entriesFor, sourceUrl, looksLikeCommand, methodInfo } from './code-manifest.js';
-import { tokenize, toLines } from './highlight.js';
+import { LANGS, entriesFor, sourceUrl, looksLikeCommand } from './code-manifest.js';
 import { copyText } from './clipboard.js';
+import { parseArgs, runCode } from './code-runner.js';
 
 // Code tab: Python 3 / C++17 programs for the method, listed in code/manifest.json (schema: docs/code-manifest.md).
 // All async work is tied to the view's Scope: leaving the page aborts the fetches and late results are ignored.
@@ -42,12 +42,16 @@ function copyButton(scope, getText, label = 'Copy', aria = label) {
   return [b, status];
 }
 
-export function codeBlock(source, lang) {
-  const lines = toLines(tokenize(source, lang));
-  if (lines.length > 1 && !lines[lines.length - 1].length) lines.pop(); // trailing newline
-  const lineEl = (ln) => h('span', { class: 'ln' }, ln.length ? ln.map((tk) => (tk.t === 'txt' ? tk.v : h('span', { class: `tk-${tk.t}` }, tk.v))) : '\u200b', '\n');
-  return h('pre', { class: `code lang-${lang}`, tabindex: '0', 'aria-label': `${lang === 'cpp' ? 'C++' : 'Python'} source code` },
-    h('code', {}, lines.map(lineEl)));
+function statusLabel(lang, status) {
+  if (status === 'loading') return lang === 'cpp' ? 'Downloading the C++ compiler…' : 'Loading Python…';
+  if (status === 'busy') return lang === 'cpp' ? 'Compiling…' : 'Starting…';
+  if (status === 'ready') return 'Running…';
+  return 'Running…';
+}
+
+function cppNote() {
+  return h('p', { class: 'muted small runner-note' },
+    'The C++ compiler (Clang 21, about 26 MB) is downloaded from jsDelivr the first time you press Run, then cached. Compilation stays in your browser — the source is not sent to a server. The first compile can take several seconds.');
 }
 
 export function renderCodeTab(method, { scope, prefs }) {
@@ -63,11 +67,11 @@ export function renderCodeTab(method, { scope, prefs }) {
     if (!manifest) { soon(); return; }
     const entries = entriesFor(manifest, method.id);
     const langs = LANGS.filter((l) => entries[l.id]);
-    const info = methodInfo(manifest, method.id);
     if (!langs.length) { soon(); return; }
     let lang = langs.find((l) => l.id === prefs.get('code-lang', 'python')) || langs[0];
     const tabs = h('div', { class: 'segmented code-langs', role: 'radiogroup', 'aria-label': 'Language' });
     const body = h('div', { class: 'code-body' });
+    const buffers = {};
     const pick = (l) => {
       lang = l; prefs.set('code-lang', l.id);
       tabs.querySelectorAll('button').forEach((b) => { const on = b.dataset.lang === l.id; b.classList.toggle('is-active', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
@@ -92,20 +96,91 @@ export function renderCodeTab(method, { scope, prefs }) {
       fetch(url, { signal: scope.signal, cache: 'no-cache' }).then((r) => (r.ok ? r.text() : null)).catch(() => null).then(scope.guard((src) => {
         if (my !== gen) return; // a newer language pick won
         if (src == null) { fail(); return; }
-        const [copyBtn, copyStatus] = copyButton(scope, () => src, 'Copy code', `Copy ${e.file.split('/').pop()}`);
+        if (buffers[lang.id] == null) buffers[lang.id] = { code: src, args: '', stdin: '' };
+        const buf = buffers[lang.id];
+        const [copyBtn, copyStatus] = copyButton(scope, () => editor.value, 'Copy code', `Copy ${e.file.split('/').pop()}`);
         const cmdRow = (c) => { const [b, st] = copyButton(scope, () => c, 'Copy', `Copy command: ${c}`); return h('li', { class: 'cmd' }, h('code', {}, c), b, st); };
         const sec = (title, ...kids) => h('section', { class: 'code-sec' }, h('h3', {}, title), ...kids);
+        const editor = h('textarea', {
+          class: 'code-editor mono', spellcheck: 'false', wrap: 'off', 'aria-label': `${lang.label} source code`,
+          oninput: () => { buf.code = editor.value; },
+        });
+        editor.value = buf.code;
+        const args = h('input', { type: 'text', class: 'runner-args mono', spellcheck: 'false', autocomplete: 'off',
+          'aria-label': 'Program arguments', placeholder: 'Program arguments (leave empty for the sample defaults)',
+          value: buf.args, oninput: () => { buf.args = args.value; } });
+        const stdin = h('textarea', { class: 'runner-stdin mono', rows: 2, spellcheck: 'false', wrap: 'off',
+          'aria-label': 'Standard input', placeholder: 'Standard input (optional)',
+          oninput: () => { buf.stdin = stdin.value; } });
+        stdin.value = buf.stdin;
+        const out = h('pre', { class: 'runner-output mono', tabindex: '0', 'aria-label': 'Program output' }, 'Press Run to execute this program in your browser.');
+        const runLabel = h('span', {}, 'Run');
+        const runStatus = h('span', { class: 'runner-status', role: 'status', 'aria-live': 'polite' });
+        const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run-code' }, runLabel);
+        let running = false;
+        runBtn.addEventListener('click', async () => {
+          if (running || !scope.alive) return;
+          running = true;
+          runBtn.disabled = true;
+          runLabel.textContent = 'Running…';
+          out.textContent = '';
+          out.classList.remove('is-error', 'is-ok');
+          const chunks = [];
+          const append = (stream, text) => {
+            chunks.push({ stream, text });
+            // Rebuild so stderr can be marked without relying on innerHTML of user output.
+            out.replaceChildren();
+            for (const c of chunks) {
+              if (c.stream === 'system') out.append(h('span', { class: 'out-sys' }, c.text));
+              else if (c.stream === 'stderr') out.append(h('span', { class: 'out-err' }, c.text));
+              else out.append(c.text);
+            }
+          };
+          const result = await runCode(lang.id === 'cpp' ? 'cpp' : 'python', {
+            code: editor.value,
+            args: parseArgs(args.value),
+            stdin: stdin.value,
+            signal: scope.signal,
+            onOutput: (stream, text) => { if (scope.alive && my === gen) append(stream, text); },
+            onStatus: (status) => { if (scope.alive) runStatus.textContent = statusLabel(lang.id, status); },
+          });
+          if (!scope.alive) return;
+          running = false;
+          runBtn.disabled = false;
+          runLabel.textContent = 'Run';
+          if (!result.ok) {
+            append('stderr', result.error ? `${result.error}\n` : 'The runner failed.\n');
+            out.classList.add('is-error');
+            runStatus.textContent = result.error || 'Failed';
+          } else if (result.exitCode !== 0) {
+            out.classList.add('is-error');
+            runStatus.textContent = `Exit code ${result.exitCode}`;
+          } else {
+            out.classList.add('is-ok');
+            runStatus.textContent = 'Finished';
+            if (!chunks.length) out.append('(no output)');
+          }
+        });
+        const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => {
+          buf.code = src; buf.args = ''; buf.stdin = '';
+          editor.value = src; args.value = ''; stdin.value = '';
+        } }, 'Reset to original');
         body.replaceChildren(
           h('div', { class: 'code-file' },
-            h('div', { class: 'code-file-head' }, h('span', { class: 'code-filename mono' }, e.file.split('/').pop()), h('span', { class: 'muted small' }, lang.label), h('span', { class: 'spacer' }), copyBtn),
+            h('div', { class: 'code-file-head' }, h('span', { class: 'code-filename mono' }, e.file.split('/').pop()), h('span', { class: 'muted small' }, lang.label), h('span', { class: 'spacer' }), resetBtn, copyBtn),
             copyStatus,
-            codeBlock(src, lang.syntax || lang.id)),
+            editor),
+          h('div', { class: 'code-runner' },
+            h('div', { class: 'runner-head' }, h('h3', {}, 'Run in the browser'), runBtn, runStatus),
+            lang.id === 'cpp' ? cppNote() : h('p', { class: 'muted small runner-note' }, 'Python runs in your browser (Pyodide is loaded the first time you press Run).'),
+            h('label', { class: 'runner-field' }, h('span', { class: 'runner-label' }, 'Arguments'), args),
+            h('label', { class: 'runner-field' }, h('span', { class: 'runner-label' }, 'stdin'), stdin),
+            h('div', { class: 'runner-out-wrap' }, h('span', { class: 'runner-label' }, 'Output'), out)),
           h('div', { class: 'code-meta' },
-            info.warning ? h('p', { class: 'code-warning' }, info.warning) : null,
             sec('Dependencies',
               e.deps.length ? h('ul', { class: 'deps' }, e.deps.map((d) => h('li', { class: 'mono' }, d))) : h('p', { class: 'muted small' }, 'No extra packages.'),
               e.install.length ? h('ul', { class: 'cmds' }, e.install.map((c) => (looksLikeCommand(c) ? cmdRow(c) : h('li', { class: 'cmd-note small' }, c)))) : null),
-            e.run.length ? sec(lang.syntax === 'cpp' ? 'Compile and run' : 'Run', h('p', { class: 'muted small' }, 'From the method folder (', h('code', {}, `code/${e.file.split('/').slice(0, -1).join('/') || '.'}`), '):'), h('ul', { class: 'cmds' }, e.run.map(cmdRow))) : null,
+            e.run.length ? sec(lang.syntax === 'cpp' ? 'On your machine: compile and run' : 'On your machine', h('p', { class: 'muted small' }, 'From the method folder (', h('code', {}, `code/${e.file.split('/').slice(0, -1).join('/') || '.'}`), '):'), h('ul', { class: 'cmds' }, e.run.map(cmdRow))) : null,
             e.usage ? sec('Usage', h('ul', { class: 'cmds' }, cmdRow(e.usage))) : null,
             e.sampleFields.length ? sec('Sample input', h('dl', { class: 'kv' }, e.sampleFields.map(([k, v]) => [h('dt', {}, k), h('dd', { class: 'mono' }, v === '' ? h('span', { class: 'muted' }, '(empty)') : v)])))
               : e.sampleInput ? sec('Sample input', h('pre', { class: 'io-block' }, e.sampleInput)) : null,

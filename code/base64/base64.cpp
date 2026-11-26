@@ -1,9 +1,5 @@
 // Kryptonite - Base64 encode/decode implemented by hand (C++17, standard library only).
 //
-// Base64 is an ENCODING, not encryption: there is no key and anyone can decode it.
-// Never use it to hide secrets. In real programs use a vetted library routine
-// (e.g. OpenSSL EVP_EncodeBlock / EVP_DecodeBlock).
-//
 // Build & run:
 //   g++ -std=c++17 -O2 base64.cpp -o base64 && ./base64
 //   ./base64 encode "Hello"

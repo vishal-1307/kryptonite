@@ -1,9 +1,5 @@
 // Kryptonite - SHA-256 implemented by hand (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY. Follows FIPS 180-4 step by step for teaching. In real
-// programs use a vetted library (OpenSSL EVP_sha256, libsodium crypto_hash_sha256).
-// SHA-256 alone is not a password hash (use Argon2/bcrypt) and not a MAC (use HMAC).
-//
 // Build & run:
 //   g++ -std=c++17 -O2 sha256.cpp -o sha256 && ./sha256
 //   ./sha256 "hello"

@@ -1,7 +1,6 @@
 {
   "caesar": {
     "folder": "caesar",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "caesar/caesar.py",
       "deps": [],
@@ -67,7 +66,6 @@
   },
   "vigenere": {
     "folder": "vigenere",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "vigenere/vigenere.py",
       "deps": [],
@@ -117,7 +115,6 @@
   },
   "playfair": {
     "folder": "playfair",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "playfair/playfair.py",
       "deps": [],
@@ -191,7 +188,6 @@
   },
   "railfence": {
     "folder": "railfence",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "railfence/railfence.py",
       "deps": [],
@@ -253,7 +249,6 @@
   },
   "hill": {
     "folder": "hill",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "hill/hill.py",
       "deps": [],
@@ -323,7 +318,6 @@
   },
   "aes": {
     "folder": "aes128",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "aes128/aes128.py",
       "deps": [],
@@ -449,7 +443,6 @@
   },
   "rsa": {
     "folder": "rsa",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "rsa/rsa.py",
       "deps": [],
@@ -529,7 +522,6 @@
   },
   "diffiehellman": {
     "folder": "diffiehellman",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "diffiehellman/diffiehellman.py",
       "deps": [],
@@ -595,7 +587,6 @@
   },
   "sha256": {
     "folder": "sha256",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "sha256/sha256.py",
       "deps": [],
@@ -677,7 +668,6 @@
   },
   "base64": {
     "folder": "base64",
-    "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
       "file": "base64/base64_demo.py",
       "deps": [],

@@ -204,7 +204,7 @@ function run({ p, q, e, message, format }, decrypting) {
 function realWorldStep() {
   return {
     title: 'Textbook RSA vs real-world RSA',
-    explanation: 'This page is an educational demo of "textbook" RSA with small demonstration values; it is not a production implementation. Real RSA is never used like this: encryption uses OAEP padding (RSAES-OAEP, PKCS #1 v2.2), signatures use PSS (RSASSA-PSS) on a hash of the message, keys are 2048 bits or more, and in practice RSA usually only encrypts or signs a short random key, while the data itself is encrypted with AES. Use a vetted library (for example OpenSSL, Python\'s cryptography package, or your platform\'s crypto API) for real data.',
+    explanation: 'What this page shows is "textbook" RSA with small numbers and no padding. Real RSA is never used like this: encryption uses OAEP padding (RSAES-OAEP, PKCS #1 v2.2), signatures use PSS (RSASSA-PSS) on a hash of the message, keys are 2048 bits or more, and in practice RSA usually only encrypts or signs a short random key, while the data itself is encrypted with AES.',
     visual: { type: 'table', data: { headers: ['', 'Textbook RSA (this demo)', 'Real-world RSA'], rows: [
       ['Key size', 'n of a few digits', 'n of 2048, 3072 or 4096 bits'],
       ['Encryption', 'c = mᵉ mod n, one character at a time', 'RSAES-OAEP: random padding, then mᵉ mod n'],
@@ -225,7 +225,7 @@ function unsafeStep(k) {
   const sampleNote = sample === 72n ? "72 ('H')" : sample === 65n ? "65 ('A')" : '2';
   return {
     title: 'Why textbook RSA is unsafe',
-    explanation: 'What you just saw is "textbook" RSA: no padding and tiny numbers. Real RSA uses 2048-bit or larger n and OAEP padding (signatures use PSS), which adds randomness so these attacks fail. Never implement RSA this way for real data.',
+    explanation: 'What you just saw is "textbook" RSA: no padding and tiny numbers. Real RSA uses 2048-bit or larger n and OAEP padding (signatures use PSS), which adds randomness so these attacks fail.',
     visual: { type: 'table', data: { headers: ['Problem', 'Demonstration', 'Fix'], rows: [
       ['Deterministic: same message → same ciphertext', `With your key, m = ${sampleNote} always gives c = ${enc(sample)}, so an attacker can build a dictionary`, 'Random padding (OAEP)'],
       ['Some messages do not change', `With your key, 0 → ${enc(0n)}, 1 → ${enc(1n)}, ${k.n - 1n} → ${enc(k.n - 1n)}`, 'Padding'],
@@ -242,7 +242,7 @@ export default {
   id: 'rsa',
   name: 'RSA',
   category: 'Asymmetric',
-  description: 'Public-key encryption: key generation from two primes, then c = mᵉ mod n and m = cᵈ mod n. Educational "textbook" RSA with small demonstration values: no OAEP/PSS padding, not for real use.',
+  description: 'Public-key encryption: key generation from two primes, then c = mᵉ mod n and m = cᵈ mod n. This is textbook RSA: small numbers and no OAEP/PSS padding.',
   ioField: 'message',
   inputs: [
     intInput('p', 'Prime p', 61),

@@ -2,9 +2,6 @@
 """
 Kryptonite - Rail Fence cipher (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY. Rail Fence has very few keys and is trivially
-brute-forced. Never use it to protect real data; use a vetted library instead.
-
 Usage:
     python3 railfence.py                                  # sample: WEAREDISCOVEREDFLEEATONCE, 3 rails
     python3 railfence.py encrypt "Hello world" 4

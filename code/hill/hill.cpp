@@ -1,8 +1,5 @@
 // Kryptonite - Hill cipher, 2x2 (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY. Hill is linear and falls to a known-plaintext attack.
-// Never use it to protect real data; use a vetted library instead.
-//
 // Build & run:
 //   g++ -std=c++17 -O2 hill.cpp -o hill && ./hill
 //   ./hill encrypt "short example" HILL

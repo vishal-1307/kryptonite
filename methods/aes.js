@@ -138,14 +138,13 @@ function opStep(e, decrypting) {
   return { title: `${roundLabel} · ${e.op}`, explanation: EXPLAIN[e.op] + extra, visual };
 }
 
-const LIMITS = 'Limits of this demo: it encrypts exactly ONE 16-byte block with the raw block cipher (no mode of operation, which is the same as ECB for one block), uses no IV/nonce and no authentication tag. Short text is padded to 16 bytes (zero bytes by default, or PKCS#7 if chosen). Do not use it to protect real data.';
-const KDF_NOTE = 'Real systems never use a typed password directly as an AES key; they derive the 16 bytes with a key-derivation function such as PBKDF2, scrypt or Argon2.';
+const LIMITS = 'This encrypts exactly ONE 16-byte block with the raw block cipher (no mode of operation, which is the same as ECB for one block), uses no IV/nonce and no authentication tag. Short text is padded to 16 bytes (zero bytes by default, or PKCS#7 if chosen).';
 
 /** Parse the 128-bit key. Hex: exactly 32 hex characters. Text: exactly 16 bytes (UTF-8). No silent padding. */
 export function parseKey(value, keyFormat = 'hex') {
   if (keyFormat === 'text') {
     const bytes = utf8Encode(value);
-    if (bytes.length !== 16) throw new Error(`A text key must be exactly 16 bytes (16 plain English characters); this one is ${bytes.length} byte${bytes.length === 1 ? '' : 's'}. ${KDF_NOTE}`);
+    if (bytes.length !== 16) throw new Error(`A text key must be exactly 16 bytes (16 plain English characters); this one is ${bytes.length} byte${bytes.length === 1 ? '' : 's'}.`);
     return bytes;
   }
   const clean = String(value).replace(/\s+/g, '');
@@ -218,7 +217,7 @@ function run({ block, key, format, keyFormat = 'hex', padding = 'zero' }, decryp
     title: decrypting ? 'Load the ciphertext into the state' : 'Load the plaintext into the state',
     explanation: `AES works on a 4×4 grid of bytes called the state, filled column by column. A block is always exactly 16 bytes (128 bits) and so is the AES-128 key.`
       + (!decrypting && format === 'text' ? ` Your text is ${parsed.textChars} character${parsed.textChars === 1 ? '' : 's'} = ${parsed.textBytes} byte${parsed.textBytes === 1 ? '' : 's'} in UTF-8${parsed.textChars !== parsed.textBytes ? ' (letters outside plain English take 2–4 bytes each)' : ''}.` : '')
-      + `${keyFormat === 'text' ? ` Your text key was converted to its 16 UTF-8 bytes. ${KDF_NOTE}` : ''}`
+      + `${keyFormat === 'text' ? ' Your text key was converted to its 16 UTF-8 bytes.' : ''}`
       + ` ${LIMITS}`,
     meta: { inputBytes: input.length, textBytes: parsed.textBytes, textChars: parsed.textChars, padding: parsed.padding, paddedBytes: padded },
     visual: { type: 'byteGrid', data: { items: [g(decrypting ? 'Ciphertext' : 'Plaintext', input, ALL), { op: ' ' }, g('Key', k, [], 'key')] } },
@@ -307,7 +306,7 @@ export default {
   id: 'aes',
   name: 'AES-128',
   category: 'Symmetric',
-  description: 'The modern standard block cipher: 10 rounds of SubBytes, ShiftRows, MixColumns and AddRoundKey on a 4×4 byte state. Educational single-block demo (no mode of operation, IV or authentication); the defaults are FIPS-197 test values, not real keys.',
+  description: 'The modern standard block cipher: 10 rounds of SubBytes, ShiftRows, MixColumns and AddRoundKey on a 4×4 byte state. Single-block AES-128 (no mode of operation, IV or authentication); the defaults are the FIPS-197 test values.',
   ioField: 'block',
   examples: [
     { label: 'FIPS-197 Appendix B', values: { format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' } },

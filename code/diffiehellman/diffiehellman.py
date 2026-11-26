@@ -2,13 +2,6 @@
 """
 Kryptonite - Diffie-Hellman key exchange (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY - NOT FOR PRODUCTION. Tiny demonstration numbers, no
-authentication (so a man-in-the-middle can sit between Alice and Bob), and the
-shared secret is not passed through a KDF. Real systems use 2048-bit+ groups
-(RFC 3526 / RFC 7919) or X25519, authenticate the exchange (TLS, SSH, Signal),
-and derive keys with HKDF. For real use pick a vetted library, e.g. X25519 from
-`cryptography` or libsodium's crypto_kx.
-
 Usage:
     python3 diffiehellman.py                 # sample: p=23 g=5 a=4 b=3 -> 18
     python3 diffiehellman.py 467 2 153 197

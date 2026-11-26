@@ -3,16 +3,10 @@
 Kryptonite - AES-128 single block, LIBRARY ROUTE (uses the `cryptography` package).
 
 This is the optional alternative to aes128.py: instead of writing SubBytes,
-ShiftRows, MixColumns and AddRoundKey by hand, it calls a vetted, constant-time
+ShiftRows, MixColumns and AddRoundKey by hand, it calls a constant-time
 implementation (OpenSSL via `cryptography`). It reproduces the hex single-block
-mode of the demo (hex plaintext and hex key only: no text input, no padding).
+mode of the page (hex plaintext and hex key only: no text input, no padding).
 It uses ECB on one raw 16-byte block.
-
-EDUCATIONAL CODE ONLY. ECB / one raw block is NOT how AES should be used. For real
-data use an authenticated mode, e.g.:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    key = AESGCM.generate_key(bit_length=128); nonce = os.urandom(12)
-    ct = AESGCM(key).encrypt(nonce, plaintext, associated_data)
 
 If you need to pad text to a block boundary, use PKCS#7 from the same library
 (a message that already fills whole blocks gets an extra block of 16 x 0x10):

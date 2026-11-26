@@ -2,9 +2,6 @@
 """
 Kryptonite - Vigenere cipher (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY. Vigenere is broken by Kasiski examination and frequency
-analysis. Never use it to protect real data; use a vetted library instead.
-
 Usage:
     python3 vigenere.py                              # sample: encrypt "ATTACK AT DAWN" with key LEMON
     python3 vigenere.py encrypt "attack at dawn" lemon

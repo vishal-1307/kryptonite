@@ -131,7 +131,8 @@ test('AES: decrypted bytes that are not UTF-8 are output as raw hex', () => {
   assert.equal(keys.visual.data.rows[0][1], 'w0–w3');
   assert.equal(keys.visual.data.rows[1][1], 'w4–w7');
   assert.equal(keys.visual.data.rows[10][1], 'w40–w43');
-  assert.match(aes.description, /Educational/);
+  assert.match(aes.description, /Single-block AES-128/);
+  assert.doesNotMatch(aes.description, /Educational|not for real|vetted library/i);
 });
 
 test('RSA: correct definitions, textbook vs real-world step, Euclid and square-and-multiply data', () => {
@@ -142,7 +143,7 @@ test('RSA: correct definitions, textbook vs real-world step, Euclid and square-a
   assert.match(t(/Find d/).explanation, /inverse of e modulo φ\(n\)/);
   const real = t(/Textbook RSA vs real-world RSA/);
   assert.match(real.explanation, /OAEP/); assert.match(real.explanation, /PSS/); assert.match(real.explanation, /2048/);
-  assert.match(real.explanation, /OpenSSL/); assert.match(real.explanation, /cryptography/); assert.doesNotMatch(real.explanation, /libsodium/);
+  assert.doesNotMatch(real.explanation, /vetted library|educational demo|not a production/i);
   const eu = t(/Find d/).meta.euclid;
   assert.equal(eu.d, '2753'); assert.equal(eu.rows[eu.currentRow].remainder, '1');
   assert.deepEqual(eu.rows[0], { index: 0, quotient: null, remainder: '3120', s: '1', t: '0', tTimesEModPhi: '0' });
@@ -152,7 +153,8 @@ test('RSA: correct definitions, textbook vs real-world step, Euclid and square-a
   assert.equal(mp.progress.length, 5); assert.equal(mp.progress.at(-1).acc, '2790');
   assert.equal(mp.progress[0].accBefore, '1');
   assert.doesNotThrow(() => JSON.stringify(r.steps));
-  assert.match(rsa.description, /Educational/);
+  assert.match(rsa.description, /textbook RSA/);
+  assert.doesNotMatch(rsa.description, /Educational|not for real use|vetted library/i);
 });
 
 test('Diffie–Hellman: degenerate parameters are rejected or flagged; exchange data exposed', () => {
@@ -178,7 +180,8 @@ test('Diffie–Hellman: degenerate parameters are rejected or flagged; exchange 
   const swap = ok.steps.find((s) => s.title === 'Swap public keys').meta.exchange;
   assert.deepEqual(swap.messages, [{ from: 'Alice', to: 'Bob', name: 'A', value: '4', public: true }, { from: 'Bob', to: 'Alice', name: 'B', value: '10', public: true }]);
   assert.deepEqual(swap.public, ['p', 'g', 'A', 'B']);
-  assert.match(dhMethod.description, /Educational/);
+  assert.match(dhMethod.description, /small groups/);
+  assert.doesNotMatch(dhMethod.description, /Educational demo|vetted library/i);
 });
 
 test('SHA-256 avalanche flips exactly one bit and reports both bit counts', () => {

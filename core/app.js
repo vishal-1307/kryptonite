@@ -11,8 +11,7 @@ import { createSidebar } from './sidebar.js';
 import { copyText, copyableOutput } from './clipboard.js';
 import { renderExplanation } from './explain.js';
 import { renderExamples } from './examples.js';
-import { renderCodeTab, loadManifest, codeBase } from './code-tab.js';
-import { methodInfo } from './code-manifest.js';
+import { renderCodeTab } from './code-tab.js';
 import { enhanceScrollers } from './scrollers.js';
 import { iconFor } from './icons.js';
 import { teachContext, extraVisuals } from '../visuals/enhance.js';
@@ -83,8 +82,8 @@ function renderHome(categorySlug) {
     h('section', { class: 'home-head' },
       h('h1', {}, only ? only.name : 'Choose a method'),
       h('p', { class: 'lead' }, only
-        ? `${only.methods.length} method${only.methods.length === 1 ? '' : 's'}. Pick one, type a message and a key, press Run, then step through it.`
-        : 'Type a message and a key, press Run, then step through what the method does.'),
+        ? `${only.methods.length} method${only.methods.length === 1 ? '' : 's'}. Pick one, type a message and a key, press Run, then Visualize to step through it.`
+        : 'Type a message and a key, press Run to see the result, then Visualize to step through what the method does.'),
       only ? h('p', {}, h('a', { href: '#/', class: 'btn-link' }, `All methods (${methods.length})`)) : null),
     ...list.map((g) => h('section', { class: 'group', 'aria-labelledby': `g-${g.slug}` },
       h('h2', { class: 'group-title', id: `g-${g.slug}` }, `${g.name} (${g.methods.length})`),
@@ -165,13 +164,10 @@ function renderMethod(method, initial) {
     setAction(actions[n].id, true); actionBar.querySelector(`[data-action="${actions[n].id}"]`).focus();
   });
   const presets = method.examples ? h('div', { class: 'examples' }, h('span', { class: 'examples-label' }, 'Try:'), method.examples.map((ex) => h('button', { type: 'button', class: 'chip', onclick: () => { form.setValues(ex.values); run(); } }, ex.label))) : null;
-  const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run', onclick: () => { run(); revealViz(); }, html: `${ICONS.play}<span>Run</span>` });
-  const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { form.setValues(defaultValues(method), { demo: true }); run(); } }, 'Reset');
-  // Educational-use notice near the inputs: the method's own warning (method.warning or the code manifest's
-  // per-method warning) when present, otherwise a short generic line.
-  const GENERIC_NOTICE = 'For learning only: these demos show how the algorithm works and must not be used to protect real data.';
-  const notice = h('p', { class: 'edu-note small', role: 'note' }, typeof method.warning === 'string' && method.warning ? method.warning : GENERIC_NOTICE);
-  if (!method.warning) loadManifest(codeBase(prefs)).then(scope.guard((m) => { const w = m && methodInfo(m, method.id).warning; if (w) notice.textContent = w; }));
+  const runBtn = h('button', { type: 'button', class: 'btn btn-primary btn-run', onclick: () => run(), html: `${ICONS.play}<span>Run</span>` });
+  const resetBtn = h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { form.setValues(defaultValues(method)); run(); } }, 'Reset');
+  const vizBtnLabel = h('span', {}, 'Visualize');
+  const vizBtn = h('button', { type: 'button', class: 'btn btn-viz', 'aria-expanded': 'false', 'aria-controls': `viz-${method.id}`, onclick: () => setVizOpen(!vizOpen) }, vizBtnLabel);
 
   const outLabel = h('div', { class: 'out-label', id: `out-label-${method.id}` });
   const outValue = h('output', { class: 'out-value mono', 'aria-labelledby': `out-label-${method.id}` });
@@ -183,7 +179,7 @@ function renderMethod(method, initial) {
   // --- visualizer column
   const stepCount = h('span', { class: 'step-count', 'aria-hidden': 'true' });
   const live = h('p', { class: 'sr-only', 'aria-live': 'polite', 'aria-atomic': 'true' });
-  const stepTitle = h('h2', { class: 'step-title' });
+  const stepTitle = h('h2', { class: 'step-title step-caption' });
   const stage = h('div', { class: 'stage', role: 'group', 'aria-label': 'Visualization of the current step' });
   const btn = (icon, title, fn, cls = '', label = '') => h('button', { type: 'button', class: `ctrl ${cls}`, title, 'aria-label': title, onclick: fn,
     html: ICONS[icon] + (label ? `<span class="ctrl-label">${label}</span>` : '') });
@@ -198,7 +194,6 @@ function renderMethod(method, initial) {
     [0.5, 1, 1.5, 2, 4].map((x) => h('option', { value: x, selected: x === 1 }, `${x}×`)));
 
   // --- explanation column
-  const explain = h('p', { class: 'explain' });
   const details = h('div', { class: 'details', role: 'group', 'aria-label': 'Maths for this step' });
   const stepList = h('ol', { class: 'step-list' });
   const kbd = (k) => h('kbd', {}, k);
@@ -206,30 +201,28 @@ function renderMethod(method, initial) {
     h('span', {}, kbd('←'), kbd('→'), ' step'), h('span', {}, kbd('Space'), ' play'),
     h('span', {}, kbd('Home'), kbd('End'), ' first / last'), h('span', {}, kbd('M'), ' motion'));
 
-  const vizSection = h('section', { class: 'ws-viz', 'aria-labelledby': `viz-h-${method.id}` },
+  const vizSection = h('section', { class: 'ws-viz', id: `viz-${method.id}`, hidden: true, 'aria-labelledby': `viz-h-${method.id}` },
     h('div', { class: 'viz-head' }, h('span', { class: 'viz-kicker', id: `viz-h-${method.id}` }, 'Visualization'), stepCount),
-    stepTitle,
     stage,
+    stepTitle,
+    details,
     h('div', { class: 'player', role: 'toolbar', 'aria-label': 'Step controls' },
       h('div', { class: 'timeline' }, h('div', { class: 'scrub-wrap' }, ticks, scrub),
         h('label', { class: 'speed-wrap', for: `speed-${method.id}` }, h('span', {}, 'Speed'), speed)),
       h('div', { class: 'ctrl-row' },
         h('div', { class: 'ctrl-main' }, firstBtn, prevBtn, playBtn, nextBtn, lastBtn))),
+    legend,
     live);
 
-  panels.visualizer = h('div', { class: 'ws', id: 'panel-visualizer', role: 'tabpanel', 'aria-labelledby': 'tab-visualizer' },
+  const workspace = h('div', { class: 'ws', id: 'panel-visualizer', role: 'tabpanel', 'aria-labelledby': 'tab-visualizer' },
     h('section', { class: 'ws-inputs', 'aria-label': 'Input' },
-      actionBar, notice, presets, form.el, formErr,
-      h('div', { class: 'actions' }, runBtn, resetBtn, h('span', { class: 'kbd-hint' }, kbd('Ctrl'), '+', kbd('Enter'))),
+      actionBar, presets, form.el, formErr,
+      h('div', { class: 'actions' }, runBtn, vizBtn, resetBtn, h('span', { class: 'kbd-hint' }, kbd('Ctrl'), '+', kbd('Enter'))),
       h('div', { class: 'result' },
         h('div', { class: 'out-head' }, outLabel, h('div', { class: 'out-tools' }, copyBtn)),
         outValue, copyStatus, chainBtn)),
-    vizSection,
-    h('aside', { class: 'ws-explain', 'aria-labelledby': `ex-h-${method.id}` },
-      h('h2', { class: 'panel-kicker', id: `ex-h-${method.id}` }, 'What is happening'),
-      explain, details,
-      h('details', { class: 'all-steps', open: true }, h('summary', {}, 'All steps'), stepList),
-      legend));
+    vizSection);
+  panels.visualizer = workspace;
   for (const t of ['explanation', 'code', 'examples']) panels[t] = h('div', { class: `doc-panel doc-${t}`, id: `panel-${t}`, role: 'tabpanel', 'aria-labelledby': `tab-${t}`, tabindex: '0', hidden: true });
 
   main.replaceChildren(
@@ -303,20 +296,6 @@ function renderMethod(method, initial) {
     },
   });
 
-  function renderExplanationText(text) {
-    const parts = String(text || '').split(/\b(worked out below)\b/);
-    explain.replaceChildren(...parts.map((p) => (p === 'worked out below'
-      ? h('span', {}, 'worked out ', h('span', { class: 'where-below' }, 'below'), h('span', { class: 'where-right' }, 'on the right'))
-      : p)));
-  }
-  const syncWording = () => {
-    // "worked out below": true when the maths sits under the text (details panel) or the stage wraps; "on the right" otherwise.
-    const kids = [...stage.children].map((c) => c.getBoundingClientRect());
-    const side = !details.childElementCount && kids.some((r, i) => i > 0 && r.top < kids[i - 1].bottom - 4);
-    explain.classList.toggle('layout-side', side);
-  };
-  scope.observe(new ResizeObserver(scope.guard(syncWording)), stage);
-
   /** Render a list of visuals into `box`, reusing nodes in place when the renderer supports update(). */
   function renderInto(box, list, nodes, ctx, step) {
     const fresh = [];
@@ -336,10 +315,9 @@ function renderMethod(method, initial) {
   }
   function renderStep(step, ctx = {}) {
     anim.settle(); // finish the previous step's animations instantly so rapid clicks never pile up
-    renderExplanationText(step ? step.explanation : '');
     if (!step) { stage.replaceChildren(); details.replaceChildren(); stageNodes = []; detailNodes = []; return; }
     const all = [].concat(step.visual || []);
-    // Maths lines go to the explanation column when the step also has a picture; otherwise they are the picture.
+    // Maths lines sit under the visualization when the step also has a picture; otherwise they are the picture.
     const pictures = all.filter((v) => v.type !== 'math');
     const toStage = pictures.length ? pictures : all;
     // Hill block steps: the stage already works the multiplication row by row, so the one-line summary is dropped.
@@ -351,7 +329,6 @@ function renderMethod(method, initial) {
     const b = renderInto(details, toDetails, detailNodes, fullCtx, step);
     stageNodes = a.next; detailNodes = b.next;
     details.hidden = !toDetails.length;
-    syncWording();
     const fresh = [...a.fresh, ...b.fresh];
     fresh.forEach((el) => anim.enter(el));
     for (const el of fresh) if (typeof el.afterMount === 'function') el.afterMount(fullCtx);
@@ -448,11 +425,20 @@ function renderMethod(method, initial) {
     stageNodes = [];
     anim.enter(panel);
   }
-  /** On narrow layouts the visualization sits below the inputs: bring it into view after an explicit Run. */
-  function revealViz() {
-    if (matchMedia('(min-width: 1100px)').matches) return;
-    const top = vizSection.getBoundingClientRect().top;
-    if (top > window.innerHeight * 0.6) vizSection.scrollIntoView({ block: 'start', behavior: anim.reduced() ? 'auto' : 'smooth' });
+  let vizOpen = false;
+  function setVizOpen(on, { scroll = true } = {}) {
+    vizOpen = !!on;
+    vizSection.hidden = !vizOpen;
+    workspace.classList.toggle('is-viz', vizOpen);
+    vizBtn.setAttribute('aria-expanded', String(vizOpen));
+    vizBtnLabel.textContent = vizOpen ? 'Hide' : 'Visualize';
+    vizBtn.classList.toggle('is-open', vizOpen);
+    if (vizOpen && player.current) renderStep(player.current, { direction: 0 });
+    if (vizOpen && scroll) {
+      const top = vizSection.getBoundingClientRect().top;
+      if (top > window.innerHeight * 0.45 || top < 0) vizSection.scrollIntoView({ block: 'start', behavior: anim.reduced() ? 'auto' : 'smooth' });
+    }
+    if (!vizOpen && player.playing) player.pause();
   }
 
   setAction(action.id, false);
@@ -463,6 +449,7 @@ function renderMethod(method, initial) {
     methodId: method.id, scope, player,
     get action() { return action.id; },
     get tab() { return tab; },
+    get vizOpen() { return vizOpen; },
     showTab, setAction, run: () => runBtn.click(),
   };
 }
@@ -497,7 +484,7 @@ document.addEventListener('keydown', (e) => {
   if (sidebar.isOpen()) return;
   const global = { m: toggleMotion, M: toggleMotion };
   if (global[e.key]) { global[e.key](); e.preventDefault(); return; }
-  if (!view || view.tab !== 'visualizer') return;
+  if (!view || view.tab !== 'visualizer' || !view.vizOpen) return;
   if (e.target.closest('[role="tablist"], [role="radiogroup"]')) return;
   if (e.key === ' ' && e.target.closest('button, a, summary')) return;
   const player = view.player;

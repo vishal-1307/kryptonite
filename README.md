@@ -176,11 +176,9 @@ A new visual is also one file: create `visuals/<name>.js` exporting `{ type, ren
 
 - Educational fixes (pass-through characters, Vigenère key progression, Playfair fillers, exact Hill key reduction, AES byte lengths and PKCS#7, RSA definitions, degenerate Diffie–Hellman parameters, one-bit SHA-256 avalanche, Base64 decoding order and BOM) in `tests/methods-fixes.test.mjs`.
 
-> Educational use: AES here encrypts a single block (no mode of operation, IV or authentication), RSA is "textbook" RSA with tiny primes and no OAEP/PSS padding, and Diffie–Hellman uses tiny unauthenticated groups, so every step is visible. The default inputs are demonstration values. Use real libraries (Web Crypto, OpenSSL, libsodium) for actual security.
-
 ## Code examples (`code/`)
 
-Each method has a hand-written **Python 3** (standard library only) and **C++17** (standard library only) program in `code/<method>/`, with the same sample input and output format as the web page. AES-128 and SHA-256 also have a library route (`aes128_lib.py` with `cryptography`, `sha256_lib.py` with `hashlib`). The AES functions use the visualizer's names (`key_expansion`, `sub_bytes`, `shift_rows`, `mix_columns`, `add_round_key` / `KeyExpansion`, `SubBytes`, …).
+Each method has a hand-written **Python 3** (standard library only) and **C++17** (standard library only) program in `code/<method>/`, with the same sample input and output format as the web page. The Code tab can run them in the browser (editable source, arguments, stdin, and a Run button). AES-128 and SHA-256 also have a library route (`aes128_lib.py` with `cryptography`, `sha256_lib.py` with `hashlib`). The AES functions use the visualizer's names (`key_expansion`, `sub_bytes`, `shift_rows`, `mix_columns`, `add_round_key` / `KeyExpansion`, `SubBytes`, …).
 
 ```sh
 cd code/caesar && python3 caesar.py                                   # Dwwdfn dw gdzq
@@ -189,11 +187,11 @@ sh code/verify.sh        # compiles and runs all programs and compares them with
 node code/make-manifest.mjs   # regenerates code/manifest.json (read by the Code tab)
 ```
 
-`code/STEP_FIELDS.md` documents the optional `step.meta` data the methods emit for animations (Vigenère key index, Playfair cells and fillers, Rail Fence active position, Hill row products, RSA Euclid/square-and-multiply, Diffie–Hellman exchange, SHA-256 registers, Base64 decoding groups). All programs are teaching code, not production cryptography.
+`code/STEP_FIELDS.md` documents the optional `step.meta` data the methods emit for animations (Vigenère key index, Playfair cells and fillers, Rail Fence active position, Hill row products, RSA Euclid/square-and-multiply, Diffie–Hellman exchange, SHA-256 registers, Base64 decoding groups).
 
 ## Privacy and security headers
 
-Everything runs in the browser: the app makes no network requests with your messages or keys (no `fetch` of user data, no analytics, no beacons; the only requests are for the site's own static files). `vercel.json` sets a strict Content-Security-Policy (`'self'` only, no inline styles, `object-src 'none'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` and a minimal `Permissions-Policy`. Vercel adds HSTS itself. If you change the inline script in `index.html`, update its `sha256-…` hash in `script-src` (or move the script to a file and drop the hash).
+Everything runs in the browser: the app never sends your messages or keys anywhere (no `fetch` of user data, no analytics, no beacons). The Code tab can run the sample programs in the browser: Python uses self-hosted Pyodide (loaded on first Run); C++ compiles with Clang 21 in a Web Worker, and the toolchain is downloaded from jsDelivr on first Run (~26 MB, then cached). In both cases the source stays on your device. `vercel.json` sets a Content-Security-Policy (`'self'`, plus `'wasm-unsafe-eval'` / `'unsafe-eval'` for the runners and `https://cdn.jsdelivr.net` for the C++ toolchain; `object-src 'none'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` and a minimal `Permissions-Policy`. Vercel adds HSTS itself.
 
 ## Team
 

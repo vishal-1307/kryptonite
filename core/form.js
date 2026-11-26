@@ -7,10 +7,7 @@ import { inputsFor } from './contract.js';
  */
 export function buildForm(method, { onInput } = {}) {
   const fields = {};
-  // "Demo values" tag: shown while the inputs are the method's defaults, hidden as soon as the user edits.
-  const demo = h('p', { class: 'demo-tag', id: `demo-${method.id}` }, 'Demo values');
-  const el = h('div', { class: 'form' }, demo);
-  const setDemo = (on) => { demo.hidden = !on; };
+  const el = h('div', { class: 'form' });
 
   for (const input of method.inputs) {
     const id = `in-${method.id}-${input.id}`;
@@ -23,8 +20,7 @@ export function buildForm(method, { onInput } = {}) {
       control = h('input', { id, type: input.type === 'number' ? 'number' : 'text', placeholder: input.placeholder || '', min: input.min, max: input.max, step: input.type === 'number' ? 1 : undefined, spellcheck: 'false', autocomplete: 'off' });
     }
     control.value = input.default ?? '';
-    control.addEventListener('input', () => { setDemo(false); if (onInput) onInput(); });
-    if (input.type === 'select') control.addEventListener('change', () => setDemo(false));
+    control.addEventListener('input', () => { if (onInput) onInput(); });
     // Help and error text are tied to the control (aria-describedby); errors also set aria-invalid.
     const helpId = `${id}-help`, errId = `${id}-err`;
     const err = h('div', { class: 'field-error', id: errId, role: 'alert' });
@@ -45,12 +41,9 @@ export function buildForm(method, { onInput } = {}) {
       }
       return values;
     },
-    setValues(values, { demo: isDemo = false } = {}) {
+    setValues(values) {
       for (const [k, v] of Object.entries(values)) if (fields[k]) fields[k].control.value = v;
-      setDemo(isDemo);
     },
-    setDemo,
-    get isDemo() { return !demo.hidden; },
     showErrors(fieldErrors = {}) {
       for (const [k, f] of Object.entries(fields)) {
         f.err.textContent = fieldErrors[k] || '';

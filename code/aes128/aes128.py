@@ -2,12 +2,6 @@
 """
 Kryptonite - AES-128, one block, implemented by hand (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY - NOT FOR PRODUCTION. This encrypts exactly one 16-byte
-block with the raw block cipher: no mode of operation (CBC/CTR/GCM), no IV or
-nonce, no authentication, demo padding, and pure-Python code that is not
-constant-time. For real data use a vetted library, e.g. AES-GCM from the
-`cryptography` package (see aes128_lib.py) or libsodium.
-
 The function names match the Kryptonite visualizer:
     key_expansion, sub_bytes, shift_rows, mix_columns, add_round_key
 (and the inverses inv_sub_bytes, inv_shift_rows, inv_mix_columns).

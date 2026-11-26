@@ -91,7 +91,7 @@ function run({ text, rails }, decrypting) {
   if (n >= chars.length) {
     steps.unshift({ title: '⚠ Too many rails', explanation: `With ${n} rails and only ${chars.length} characters, the zigzag never turns around: every character sits on its own rail, so the output is identical to the input. Use fewer rails than characters.`, visual: { type: 'math', data: { lines: [{ expr: `rails (${n}) ≥ length (${chars.length})`, note: 'output = input', highlight: true }] } } });
   }
-  steps.push({ title: 'Result', explanation: 'Rail Fence is a transposition cipher: the letters are not changed, only their order. The number of rails is the key, and there are only a few possible keys, so it is easy to brute-force.', visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: chars.map(show) }, { label: 'Out', cells: [...output].map(show) }] } } });
+  steps.push({ title: 'Result', explanation: 'Rail Fence is a transposition cipher: the letters are not changed, only their order. The number of rails is the key, and there are only a few possible keys.', visual: { type: 'textRows', data: { rows: [{ label: 'In', cells: chars.map(show) }, { label: 'Out', cells: [...output].map(show) }] } } });
   return { output, steps };
 }
 

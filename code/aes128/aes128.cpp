@@ -1,10 +1,5 @@
 // Kryptonite - AES-128, one block, implemented by hand (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY - NOT FOR PRODUCTION. This encrypts exactly one 16-byte block
-// with the raw block cipher: no mode of operation (CBC/CTR/GCM), no IV or nonce, no
-// authentication, demo padding, and table lookups that are not constant-time (cache
-// timing). For real data use a vetted library such as OpenSSL (EVP AES-GCM) or libsodium.
-//
 // Function names match the Kryptonite visualizer:
 //   KeyExpansion, SubBytes, ShiftRows, MixColumns, AddRoundKey (+ InvSubBytes, InvShiftRows, InvMixColumns)
 // State bytes are column-major: index = row + 4*col (FIPS-197).

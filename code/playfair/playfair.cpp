@@ -1,8 +1,5 @@
 // Kryptonite - Playfair cipher (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY. Playfair is broken by digraph frequency analysis. Never
-// use it to protect real data; use a vetted library instead.
-//
 // Build & run:
 //   g++ -std=c++17 -O2 playfair.cpp -o playfair && ./playfair
 //   ./playfair encrypt "balloon" monarchy

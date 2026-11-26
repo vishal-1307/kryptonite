@@ -2,9 +2,6 @@
 """
 Kryptonite - Base64 encode/decode implemented by hand (Python 3, standard library only).
 
-Base64 is an ENCODING, not encryption: there is no key and anyone can decode it.
-Never use it to hide secrets. In real programs use the standard `base64` module.
-
 Usage:
     python3 base64_demo.py                       # sample: encode "Man" -> TWFu
     python3 base64_demo.py encode "Hello"

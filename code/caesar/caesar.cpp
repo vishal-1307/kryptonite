@@ -1,9 +1,5 @@
 // Kryptonite - Caesar cipher (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY. The Caesar cipher has 25 useful keys and is broken by
-// trying them all. Never use this to protect real data; use a vetted library
-// (e.g. libsodium, or OpenSSL's AES-GCM) instead.
-//
 // Build & run:
 //   g++ -std=c++17 -O2 caesar.cpp -o caesar && ./caesar
 //   ./caesar encrypt "Hello" 7

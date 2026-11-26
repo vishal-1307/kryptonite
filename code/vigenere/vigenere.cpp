@@ -1,8 +1,5 @@
 // Kryptonite - Vigenere cipher (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY. Vigenere is broken by Kasiski examination and frequency
-// analysis. Never use it to protect real data; use a vetted library instead.
-//
 // Build & run:
 //   g++ -std=c++17 -O2 vigenere.cpp -o vigenere && ./vigenere
 //   ./vigenere encrypt "attack at dawn" lemon

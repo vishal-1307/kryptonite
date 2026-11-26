@@ -1,8 +1,5 @@
 // Kryptonite - Rail Fence cipher (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY. Rail Fence has very few keys and is trivially
-// brute-forced. Never use it to protect real data; use a vetted library instead.
-//
 // Build & run:
 //   g++ -std=c++17 -O2 railfence.cpp -o railfence && ./railfence
 //   ./railfence encrypt "Hello world" 4

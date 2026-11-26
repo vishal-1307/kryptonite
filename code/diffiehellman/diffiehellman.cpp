@@ -1,11 +1,5 @@
 // Kryptonite - Diffie-Hellman key exchange (C++17, standard library only).
 //
-// EDUCATIONAL CODE ONLY - NOT FOR PRODUCTION. Tiny demonstration numbers, no
-// authentication (open to man-in-the-middle) and no key-derivation function. Real
-// systems use 2048-bit+ groups (RFC 3526 / 7919) or X25519, authenticate the
-// exchange, and derive keys with HKDF. Use a vetted library (libsodium crypto_kx,
-// OpenSSL EVP_PKEY_derive) for real work.
-//
 // Build & run:
 //   g++ -std=c++17 -O2 diffiehellman.cpp -o diffiehellman && ./diffiehellman
 //   ./diffiehellman 467 2 153 197

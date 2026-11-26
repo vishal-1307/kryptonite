@@ -2,12 +2,6 @@
 """
 Kryptonite - textbook RSA (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY - NOT FOR PRODUCTION. This is "textbook" RSA with tiny
-demonstration primes, no padding, one character per block: it is deterministic,
-malleable and trivially factored. Real RSA uses 2048+ bit keys, OAEP padding for
-encryption and PSS for signatures. For real data use a vetted library, e.g.
-`cryptography` (rsa.generate_private_key + padding.OAEP) or OpenSSL.
-
 Usage:
     python3 rsa.py                                    # sample: p=61 q=53 e=17, encrypt "HI"
     python3 rsa.py encrypt 61 53 17 text "Hello"

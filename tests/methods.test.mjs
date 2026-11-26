@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { methods } from '../registry.js';
 import { getActions, validate, runAction } from '../core/contract.js';
 import template from '../methods/_template.js';
-import caesar, { shiftText } from '../methods/caesar.js';
+import caesar from '../methods/caesar.js';
 import vigenere from '../methods/vigenere.js';
 import playfair, { keySquare } from '../methods/playfair.js';
 import railfence, { railEncrypt, railDecrypt } from '../methods/railfence.js';
@@ -65,12 +65,6 @@ test('Caesar: known vector, case/punctuation preserved, round trip', () => {
   }
 });
 
-test('Caesar brute force recovers the key', () => {
-  const ct = shiftText('Meet me near the old clock tower at nine tonight', 7);
-  const res = caesar.attack({ text: ct });
-  assert.equal(res.output, 'Meet me near the old clock tower at nine tonight');
-  assert.equal(res.steps.length, 28);
-});
 
 test('Vigenère: textbook ATTACKATDAWN / LEMON', () => {
   assert.equal(vigenere.encrypt({ text: 'ATTACKATDAWN', key: 'LEMON' }).output, 'LXFOPVEFRNHR');
@@ -257,12 +251,6 @@ test('RSA: extended Euclid table derives d; helpful error messages', async () =>
   assert.ok(res.steps.some((s) => /textbook RSA is unsafe/.test(s.title)));
 });
 
-test('Caesar brute force on short text shows top 3 instead of one confident answer', () => {
-  const r = caesar.attack({ text: 'Lipps' });
-  assert.match(r.outputLabel, /top 3/);
-  assert.ok(r.candidates.some((c) => c.k === 4 && c.guess === 'Hello'));
-  assert.equal(r.candidates.length, 3);
-});
 
 test('SHA-256 wording: not for passwords; security notes step', () => {
   assert.doesNotMatch(sha256.description, /Used for passwords/);
@@ -327,7 +315,7 @@ test('Rail Fence with 2 rails labels direction from the step into each leg', () 
 
 test('Empty message is rejected with "Enter a message"; SHA-256 and Base64 allow empty', () => {
   for (const [m, action] of [
-    [caesar, 'encrypt'], [caesar, 'decrypt'], [caesar, 'attack'],
+    [caesar, 'encrypt'], [caesar, 'decrypt'],
     [vigenere, 'encrypt'], [playfair, 'encrypt'], [railfence, 'encrypt'], [hill, 'encrypt'],
     [aes, 'encrypt'], [rsa, 'encrypt'],
   ]) {

@@ -2,10 +2,6 @@
 """
 Kryptonite - Caesar cipher (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY. The Caesar cipher has 25 useful keys and is broken by
-trying them all. Never use this to protect real data; use a vetted library
-(e.g. libsodium, or AES-GCM from `cryptography`) instead.
-
 Usage:
     python3 caesar.py                         # sample: encrypt "Attack at dawn" with shift 3
     python3 caesar.py encrypt "Hello" 7

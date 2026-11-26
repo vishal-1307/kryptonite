@@ -11,7 +11,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const byId = Object.fromEntries(methods.map((m) => [m.id, m]));
 const defaults = (m) => Object.fromEntries(m.inputs.map((i) => [i.id, i.default]));
 
-const WARN = 'Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.';
 const spec = {
   caesar: { jsId: 'caesar', action: 'encrypt', cli: 'encrypt|decrypt "text" shift',
     py: [['shift_char', 'Shifts one A–Z/a–z letter by k places with wrap-around; other characters unchanged'], ['shift_text', 'Applies shift_char to every character'], ['encrypt', 'E(x) = (x + k) mod 26'], ['decrypt', 'D(x) = (x − k) mod 26']],
@@ -57,7 +56,6 @@ for (const [key, s] of Object.entries(spec)) {
   const notes = (list) => list.map(([fn, what]) => ({ fn, what }));
   manifest[s.jsId] = {
     folder: dir,
-    warning: WARN,
     python: { file: s.pyFile || `${dir}/${dir}.py`, deps: [], install: 'none (Python 3 standard library only)', run: s.pyRun || `python3 ${dir}.py`, usage: `${s.pyRun || `python3 ${dir}.py`} ${s.cli}`, sampleInput, expectedOutput, notes: notes(s.py) },
     cpp: { file: `${dir}/${dir}.cpp`, deps: [], install: 'g++ with C++17 (standard library only)', run: `g++ -std=c++17 -O2 ${dir}.cpp -o ${dir} && ./${dir}`, usage: `./${dir} ${s.cli}`, sampleInput, expectedOutput, notes: notes(s.cpp) },
   };

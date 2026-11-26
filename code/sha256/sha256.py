@@ -2,11 +2,6 @@
 """
 Kryptonite - SHA-256 implemented by hand (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY. This follows FIPS 180-4 step by step for teaching; it is
-slow and not hardened. In real programs use hashlib.sha256 (see sha256_lib.py).
-SHA-256 alone is not a password hash (use Argon2/bcrypt/scrypt) and not a MAC
-(use HMAC-SHA-256).
-
 Usage:
     python3 sha256.py              # sample: "abc"
     python3 sha256.py "hello"

@@ -2,9 +2,6 @@
 """
 Kryptonite - Playfair cipher (Python 3, standard library only).
 
-EDUCATIONAL CODE ONLY. Playfair is broken by digraph frequency analysis. Never
-use it to protect real data; use a vetted library instead.
-
 Usage:
     python3 playfair.py                                   # sample from Kryptonite
     python3 playfair.py encrypt "balloon" monarchy
