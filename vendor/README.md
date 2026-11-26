@@ -4,7 +4,7 @@ These files power the Run button on the Code tab. They load only when the user f
 
 ## Python (self-hosted)
 
-`vendor/pyodide/` is [Pyodide 0.29.5](https://github.com/pyodide/pyodide) (Mozilla Public License 2.0): `pyodide.mjs`, `pyodide.asm.js`, `pyodide.asm.wasm`, `python_stdlib.zip`, and `pyodide-lock.json`.
+`vendor/pyodide/` is [Pyodide 0.29.5](https://github.com/pyodide/pyodide) (Mozilla Public License 2.0): `pyodide.js`, `pyodide.mjs`, `pyodide.asm.js`, `pyodide.asm.wasm`, `python_stdlib.zip`, and `pyodide-lock.json`.
 
 Uncompressed size on disk: about **12.3 MB** (8.6 MB wasm + 2.4 MB stdlib + 1.1 MB asm.js glue + lock file). That is small enough to ship with the static site on Vercel. No extra Python packages are included; the programs use the standard library only.
 
