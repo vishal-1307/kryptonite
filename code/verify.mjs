@@ -26,7 +26,7 @@ const hexAes = (action, block, key) => ({ args: [action, block, key], js: ['aes'
 const rsaEnc = js('rsa', 'encrypt', { p: 61, q: 53, e: 17, format: 'text', message: 'Hello RSA!' });
 const pkcsCt = js('aes', 'encrypt', { format: 'text', block: 'ab\u0000', keyFormat: 'hex', key: C1.key, padding: 'pkcs7' });
 
-// dir = code/<dir>; prog = file stem (python: <prog>.py, C++: <prog>.cpp). Each case: CLI args + the equivalent JS call.
+// dir = code/<dir>; py/cpp/prog = file stem (python: <py or prog>.py, C++: <cpp or prog>.cpp). Each case: CLI args + the equivalent JS call.
 const suites = [
   { dir: 'caesar', cases: [
     { args: [], js: ['caesar', 'encrypt', { text: 'Attack at dawn', shift: 3 }] },
@@ -89,6 +89,7 @@ const suites = [
     { reject: true, args: ['23', '5', '1', '3'], js: ['diffiehellman', 'exchange', { p: 23, g: 5, a: 1, b: 3 }], note: 'a = 1 rejected' },
     { reject: true, args: ['23', '22', '4', '3'], js: ['diffiehellman', 'exchange', { p: 23, g: 22, a: 4, b: 3 }], note: 'g = p − 1 rejected' },
     { reject: true, args: ['23', '2', '11', '3'], js: ['diffiehellman', 'exchange', { p: 23, g: 2, a: 11, b: 3 }], note: 'A = 1 rejected' },
+    { reject: true, args: ['23', '5', '11', '3'], js: ['diffiehellman', 'exchange', { p: 23, g: 5, a: 11, b: 3 }], note: 'A = p − 1 rejected' },
     { args: ['999999937', '5', '123456789', '987654321'], js: ['diffiehellman', 'exchange', { p: 999999937, g: 5, a: 123456789, b: 987654321 }] },
   ] },
   { dir: 'sha256', cases: [
@@ -103,7 +104,7 @@ const suites = [
     { args: [''], js: ['sha256', 'hash', { text: '' }] },
     { args: ['नमस्ते 🔐'], js: ['sha256', 'hash', { text: 'नमस्ते 🔐' }] },
   ] },
-  { dir: 'base64', cases: [
+  { dir: 'base64', py: 'base64_demo', cases: [
     { args: [], js: ['base64', 'encode', { text: 'Man' }] },
     { args: ['encode', 'Hello, नमस्ते 🔐'], js: ['base64', 'encode', { text: 'Hello, नमस्ते 🔐' }] },
     { args: ['encode', ''], js: ['base64', 'encode', { text: '' }] },
@@ -128,7 +129,8 @@ const run = (cmd, args, cwd) => {
 const rows = [];
 let failures = 0;
 for (const s of suites) {
-  const prog = s.prog || s.dir;
+  const pyProg = s.py || s.prog || s.dir;
+  const cppProg = s.cpp || s.prog || s.dir;
   const cwd = join(here, s.dir);
   const label = s.label || s.dir;
   const result = { label, python: 'pass', cpp: s.pythonOnly ? 'n/a' : 'pass', cases: s.cases.length };
@@ -136,13 +138,13 @@ for (const s of suites) {
   if (!s.pythonOnly) {
     if (!haveGpp) result.cpp = 'SKIP (no g++)';
     else {
-      exe = join(build, prog);
-      try { execFileSync('g++', ['-std=c++17', '-O2', '-Wall', '-Wextra', '-o', exe, join(cwd, `${prog}.cpp`)], { stdio: 'pipe' }); }
+      exe = join(build, cppProg);
+      try { execFileSync('g++', ['-std=c++17', '-O2', '-Wall', '-Wextra', '-o', exe, join(cwd, `${cppProg}.cpp`)], { stdio: 'pipe' }); }
       catch (e) { result.cpp = 'FAIL (compile)'; console.error(String(e.stderr)); failures++; exe = null; }
     }
   }
   if (!havePy) result.python = 'SKIP (no python3)';
-  if (prog === 'aes128_lib' && !haveCryptography) result.python = 'SKIP (pip install cryptography)';
+  if (pyProg === 'aes128_lib' && !haveCryptography) result.python = 'SKIP (pip install cryptography)';
   for (const c of s.cases) {
     if (c.reject) {
       // Kryptonite must refuse these inputs (validation or a thrown error), and so must both programs.
@@ -151,14 +153,14 @@ for (const s of suites) {
       let jsRejects = Boolean(Object.keys(v.fieldErrors).length || v.formError);
       if (!jsRejects) { try { runAction(m, c.js[1], c.js[2]); } catch { jsRejects = true; } }
       if (!jsRejects) { console.error(`JS accepted a reject case: ${label} ${c.args}`); failures++; }
-      if (result.python === 'pass' && run('python3', [`${prog}.py`, ...c.args], cwd).ok) { result.python = 'FAIL'; failures++; console.error(`✗ ${label} python should reject ${JSON.stringify(c.args)}`); }
+      if (result.python === 'pass' && run('python3', [`${pyProg}.py`, ...c.args], cwd).ok) { result.python = 'FAIL'; failures++; console.error(`✗ ${label} python should reject ${JSON.stringify(c.args)}`); }
       if (exe && result.cpp === 'pass' && run(exe, c.args, cwd).ok) { result.cpp = 'FAIL'; failures++; console.error(`✗ ${label} c++ should reject ${JSON.stringify(c.args)}`); }
       continue;
     }
     const expected = js(...c.js);
     if (c.expect !== undefined && c.expect !== expected) { console.error(`JS mismatch with published vector: ${label} ${c.args}`); failures++; }
     if (result.python === 'pass') {
-      const r = run('python3', [`${prog}.py`, ...c.args], cwd);
+      const r = run('python3', [`${pyProg}.py`, ...c.args], cwd);
       if (!r.ok || r.out !== expected) { result.python = 'FAIL'; failures++; console.error(`✗ ${label} python ${JSON.stringify(c.args)}\n  expected ${JSON.stringify(expected)}\n  got      ${JSON.stringify(r.out)} ${r.err}`); }
     }
     if (exe && result.cpp === 'pass') {

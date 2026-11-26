@@ -111,7 +111,9 @@ test('AES: PKCS#7 padding preserves genuine trailing 00 bytes; zero padding is d
   const zd = aes.decrypt({ format: 'text', block: z.output, keyFormat: 'hex', key });
   assert.equal(zd.output, 'ab'); // zero padding cannot tell the genuine 00 apart: said so in the step
   assert.match(zd.steps.find((s) => s.title === 'Plaintext recovered').explanation, /genuine trailing 00 would also be lost/);
-  assert.throws(() => aes.encrypt({ format: 'text', block: 'Two One Nine Two', keyFormat: 'hex', key, padding: 'pkcs7' }), /at most 15 bytes/);
+  const sixteen = () => { try { aes.encrypt({ format: 'text', block: 'Two One Nine Two', keyFormat: 'hex', key, padding: 'pkcs7' }); } catch (e) { return e.message; } };
+  assert.match(sixteen(), /at most 15 bytes/);
+  assert.match(sixteen(), /extra block of sixteen 10 \(hex\) bytes/);
   assert.deepEqual(unpadText([...Array(16)].map(() => 7)).paddingOk, true);
 });
 
@@ -124,6 +126,11 @@ test('AES: decrypted bytes that are not UTF-8 are output as raw hex', () => {
   const bad = aes.decrypt({ ...v, padding: 'pkcs7' });
   assert.equal(bad.output, '00112233445566778899aabbccddeeff');
   assert.match(bad.outputLabel, /not valid PKCS#7/);
+  const keys = aes.encrypt({ format: 'hex', block: '3243f6a8885a308d313198a2e0370734', keyFormat: 'hex', key: '2b7e151628aed2a6abf7158809cf4f3c' }).steps.find((s) => /all 11 round keys/i.test(s.title));
+  assert.deepEqual(keys.visual.data.headers, ['Round', 'Words', 'Round key (4 words)']);
+  assert.equal(keys.visual.data.rows[0][1], 'w0–w3');
+  assert.equal(keys.visual.data.rows[1][1], 'w4–w7');
+  assert.equal(keys.visual.data.rows[10][1], 'w40–w43');
   assert.match(aes.description, /Educational/);
 });
 
@@ -135,6 +142,7 @@ test('RSA: correct definitions, textbook vs real-world step, Euclid and square-a
   assert.match(t(/Find d/).explanation, /inverse of e modulo φ\(n\)/);
   const real = t(/Textbook RSA vs real-world RSA/);
   assert.match(real.explanation, /OAEP/); assert.match(real.explanation, /PSS/); assert.match(real.explanation, /2048/);
+  assert.match(real.explanation, /OpenSSL/); assert.match(real.explanation, /cryptography/); assert.doesNotMatch(real.explanation, /libsodium/);
   const eu = t(/Find d/).meta.euclid;
   assert.equal(eu.d, '2753'); assert.equal(eu.rows[eu.currentRow].remainder, '1');
   assert.deepEqual(eu.rows[0], { index: 0, quotient: null, remainder: '3120', s: '1', t: '0', tTimesEModPhi: '0' });
@@ -155,6 +163,9 @@ test('Diffie–Hellman: degenerate parameters are rejected or flagged; exchange 
   assert.match(v({ p: 23, g: 22, a: 4, b: 3 }), /trivial generator.*p − 1/);
   assert.match(v({ p: 23, g: 2, a: 11, b: 3 }), /A = g\^a mod p = 1/);
   assert.match(v({ p: 23, g: 2, a: 3, b: 11 }), /B = g\^b mod p = 1/);
+  // g=5 is a primitive root mod 23, so a = 11 = (p-1)/2 gives A = g^a = p-1 = 22, and the shared secret is also p-1.
+  assert.match(v({ p: 23, g: 5, a: 11, b: 3 }), /A = g\^a mod p = 22 \(p − 1\)/);
+  assert.match(v({ p: 23, g: 5, a: 4, b: 11 }), /B = g\^b mod p = 22 \(p − 1\)/);
   // order of 2 mod 31 is 5: a = 2, b = 5 → B = 1; a = 2, b = 10 → B = 1 too. a = 10, b = 3 → A = 1.
   assert.match(v({ p: 31, g: 2, a: 10, b: 3 }), /A = g\^a mod p = 1/);
   assert.deepEqual(dhIssues(23, 1, 4, 3).map((i) => i.code).includes('g-one'), true);

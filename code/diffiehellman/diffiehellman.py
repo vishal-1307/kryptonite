@@ -71,9 +71,14 @@ def check(p: int, g: int, a: int, b: int):
     if a < 2 or b < 2 or a > p - 2 or b > p - 2:
         return f"Secrets a and b must be between 2 and p - 2 ({p - 2})."
     A, B = pow(g, a, p), pow(g, b, p)
+    s = pow(B, a, p)
+    # RFC 7919 §5.1 / NIST SP 800-56A: a received public value y must satisfy 1 < y < p-1.
     if A == 1: return "Degenerate parameters: A = g^a mod p = 1."
     if B == 1: return "Degenerate parameters: B = g^b mod p = 1."
-    if pow(B, a, p) == 1: return "Degenerate parameters: the shared secret is 1."
+    if A == p - 1: return "Degenerate parameters: A = g^a mod p = p − 1. A public value of p − 1 makes the shared secret 1 or p − 1, so Eve can guess it (RFC 7919: 1 < y < p − 1)."
+    if B == p - 1: return "Degenerate parameters: B = g^b mod p = p − 1. A public value of p − 1 makes the shared secret 1 or p − 1, so Eve can guess it (RFC 7919: 1 < y < p − 1)."
+    if s == 1: return "Degenerate parameters: the shared secret is 1."
+    if s == p - 1: return "Degenerate parameters: the shared secret is p − 1. Implementations must reject values of 1 and p − 1 (RFC 7919)."
     return None
 
 

@@ -172,7 +172,7 @@ export function parseBlock(value, format, what, padding = 'zero') {
     const charNote = chars !== bytes.length ? ` (${chars} character${chars === 1 ? '' : 's'}, but some take more than one byte in UTF-8)` : '';
     if (bytes.length > 16) throw new Error(`${what} is ${bytes.length} bytes${charNote}; this single-block demo allows at most 16 bytes (16 plain English characters).`);
     if (padding === 'pkcs7') {
-      if (bytes.length > 15) throw new Error(`${what} is ${bytes.length} bytes${charNote}. PKCS#7 always adds at least one padding byte, so in this single-block demo the text can be at most 15 bytes.`);
+      if (bytes.length > 15) throw new Error(`${what} is ${bytes.length} bytes${charNote}. PKCS#7 always adds at least one padding byte, so in this single-block demo the text can be at most 15 bytes. If the data is already a multiple of 16 bytes, PKCS#7 adds a whole extra block of sixteen 10 (hex) bytes. This one-block demo can't show that, so it limits text to 15 bytes.`);
       const n = 16 - bytes.length;
       return { bytes: bytes.concat(new Array(n).fill(n)), padded: n, padding, textBytes: bytes.length, textChars: chars };
     }
@@ -227,7 +227,7 @@ function run({ block, key, format, keyFormat = 'hex', padding = 'zero' }, decryp
     steps.push({
       title: parsed.padding === 'pkcs7' ? `Padding: ${padded} PKCS#7 byte${padded === 1 ? '' : 's'} (value ${toHex(padded)}) added` : `Padding: ${padded} zero byte${padded === 1 ? '' : 's'} added`,
       explanation: parsed.padding === 'pkcs7'
-        ? `Your text is ${16 - padded} bytes but AES needs a full 16-byte block. PKCS#7 appends ${padded} bytes that each have the value ${padded} (${toHex(padded)}), so after decryption exactly that many bytes are removed and any genuine 00 bytes in your data are kept.`
+        ? `Your text is ${16 - padded} bytes but AES needs a full 16-byte block. PKCS#7 appends ${padded} bytes that each have the value ${padded} (${toHex(padded)}), so after decryption exactly that many bytes are removed and any genuine 00 bytes in your data are kept. If the data is already a multiple of 16 bytes, PKCS#7 adds a whole extra block of sixteen 10 (hex) bytes. This one-block demo can't show that, so it limits text to 15 bytes.`
         : `⚠ Your text is ${16 - padded} bytes but AES needs a full 16-byte block, so this demo appends ${padded} bytes of 00. Zero padding is ambiguous (a real trailing 00 byte cannot be told apart from padding). Choose "PKCS#7" padding to avoid that; real systems use PKCS#7, or a mode such as GCM/CTR that needs no padding.`,
       visual: { type: 'byteGrid', data: { items: [g('Plaintext + padding', input, Array.from({ length: padded }, (_, i) => 16 - padded + i))] } },
     });
@@ -246,7 +246,7 @@ function run({ block, key, format, keyFormat = 'hex', padding = 'zero' }, decryp
   }, {
     title: 'Key expansion: all 11 round keys',
     explanation: 'Repeating that process gives one 128-bit round key for the initial step and each of the 10 rounds.',
-    visual: { type: 'table', data: { mono: true, headers: ['Round', 'Round key (w₀ w₁ w₂ w₃)'], rows: roundKeys.map((rk, r) => [r, bytesToHex(rk).match(/.{8}/g).join(' ')]), highlightRows: decrypting ? [10] : [0] } },
+    visual: { type: 'table', data: { mono: true, headers: ['Round', 'Words', 'Round key (4 words)'], rows: roundKeys.map((rk, r) => [r, `w${4 * r}–w${4 * r + 3}`, bytesToHex(rk).match(/.{8}/g).join(' ')]), highlightRows: decrypting ? [10] : [0] } },
   });
   log.forEach((e) => steps.push(opStep(e, decrypting)));
   let outputText = bytesToHex(output);

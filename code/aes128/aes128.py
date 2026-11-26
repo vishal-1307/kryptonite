@@ -183,7 +183,7 @@ def pad_text(text: str, padding: str):
         raise ValueError(f"The plaintext is {len(b)} bytes; this single-block demo allows at most 16 bytes.")
     if padding == "pkcs7":
         if len(b) > 15:
-            raise ValueError(f"The plaintext is {len(b)} bytes. PKCS#7 always adds at least one padding byte, so the text can be at most 15 bytes.")
+            raise ValueError(f"The plaintext is {len(b)} bytes. PKCS#7 always adds at least one padding byte, so the text can be at most 15 bytes. If the data is already a multiple of 16 bytes, PKCS#7 adds a whole extra block of sixteen 10 (hex) bytes. This one-block demo can't show that, so it limits text to 15 bytes.")
         n = 16 - len(b)
         return b + [n] * n
     return b + [0] * (16 - len(b))

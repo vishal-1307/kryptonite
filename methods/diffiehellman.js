@@ -52,14 +52,17 @@ export function dhIssues(p, g, a, b) {
     if (!out.some((i) => /^[ab]-/.test(i.code))) {
       if (A === 1n) err('A-one', `A = g^a mod p = 1 because the order of g (${ord}) divides a = ${a}. A public value of 1 reveals information about a and forces the shared secret to 1.`);
       if (B === 1n) err('B-one', `B = g^b mod p = 1 because the order of g (${ord}) divides b = ${b}. A public value of 1 forces the shared secret to 1.`);
+      if (A === P - 1n) err('A-p-minus-one', `A = g^a mod p = ${P - 1n} (p − 1). When a public value is p − 1 the shared secret can only be 1 or p − 1, so Eve can guess it from A alone. Received public values must satisfy 1 < y < p − 1 (RFC 7919).`);
+      if (B === P - 1n) err('B-p-minus-one', `B = g^b mod p = ${P - 1n} (p − 1). When a public value is p − 1 the shared secret can only be 1 or p − 1, so Eve can guess it from B alone. Received public values must satisfy 1 < y < p − 1 (RFC 7919).`);
       if (A !== 1n && B !== 1n && sA === 1n) err('s-one', `The shared secret is 1 because the order of g (${ord}) divides a × b. Anyone can guess a secret of 1.`);
+      if (A !== 1n && A !== P - 1n && B !== 1n && B !== P - 1n && sA === P - 1n) err('s-p-minus-one', `The shared secret is p − 1 because a × b is a multiple of half the order of g (${ord}). Anyone can guess a secret of 1 or p − 1. Implementations must reject values of 0, 1 and p − 1 (RFC 7919).`);
     }
     if (ord > 2n && ord * 4n < P - 1n) out.push({ code: 'small-subgroup', severity: 'warning', message: `g only generates a subgroup of ${ord} of the ${P - 1n} values; prefer a primitive root or, in a safe prime, the subgroup of order (p − 1)/2.` });
   }
   return out;
 }
 
-const GROUP_NOTE = 'The group here is the numbers 1 … p − 1 under multiplication mod p. The powers of g form a subgroup whose size is the order of g. For security that subgroup must be large and of (large) prime order: then every public value and secret is one of very many possibilities, and small-subgroup / Pohlig–Hellman attacks do not apply. The standard choice is a safe prime p = 2q + 1 (q prime) with g of order q, and implementations must reject received public values of 0, 1 and p − 1.';
+const GROUP_NOTE = 'The group here is the numbers 1 … p − 1 under multiplication mod p. The powers of g form a subgroup whose size is the order of g. For security that subgroup must be large and of (large) prime order: then every public value and secret is one of very many possibilities, and small-subgroup / Pohlig–Hellman attacks do not apply. The standard choice is a safe prime p = 2q + 1 (q prime) with g of order q, and implementations must reject received public values of 0, 1 and p − 1 (that is, require 1 < y < p − 1; RFC 7919), and likewise a shared secret of 1 or p − 1.';
 
 export default {
   id: 'diffiehellman',

@@ -189,7 +189,7 @@ Block padText(const std::string& text, const std::string& padding) {
     if (text.size() > 16) throw std::runtime_error("The plaintext is " + std::to_string(text.size()) + " bytes; this single-block demo allows at most 16 bytes.");
     Block b{};
     if (padding == "pkcs7") {
-        if (text.size() > 15) throw std::runtime_error("The plaintext is 16 bytes. PKCS#7 always adds at least one padding byte, so the text can be at most 15 bytes.");
+        if (text.size() > 15) throw std::runtime_error("The plaintext is 16 bytes. PKCS#7 always adds at least one padding byte, so the text can be at most 15 bytes. If the data is already a multiple of 16 bytes, PKCS#7 adds a whole extra block of sixteen 10 (hex) bytes. This one-block demo can't show that, so it limits text to 15 bytes.");
         b.fill(uint8_t(16 - text.size()));
     }
     for (size_t i = 0; i < text.size(); i++) b[i] = uint8_t(text[i]);

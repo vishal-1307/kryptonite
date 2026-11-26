@@ -31,7 +31,7 @@ const spec = {
   aes: { dir: 'aes128', jsId: 'aes', action: 'encrypt', cli: 'encrypt|decrypt block key [--format hex|text] [--key-format hex|text] [--padding zero|pkcs7]',
     py: [['key_expansion', 'Expands the 16-byte key into 11 round keys (RotWord, SubWord, Rcon)'], ['sub_bytes', 'SubBytes: replaces every byte with its S-box value'], ['shift_rows', 'ShiftRows: rotates row r left by r'], ['mix_columns', 'MixColumns: multiplies each column by the fixed matrix in GF(2⁸)'], ['add_round_key', 'AddRoundKey: XORs the state with the round key'], ['encrypt_block', 'Initial AddRoundKey + 10 rounds (no MixColumns in round 10)'], ['decrypt_block', 'Inverse cipher with InvShiftRows, InvSubBytes, InvMixColumns'], ['build_sbox', 'Builds the S-box from GF(2⁸) inverses and the affine transform']],
     cpp: [['KeyExpansion', 'Expands the key into 11 round keys'], ['SubBytes', 'S-box substitution of every byte'], ['ShiftRows', 'Rotates row r left by r'], ['MixColumns', 'Column mixing in GF(2⁸)'], ['AddRoundKey', 'XOR with the round key'], ['encryptBlock', 'Initial AddRoundKey + 10 rounds'], ['decryptBlock', 'Inverse cipher'], ['buildSbox', 'Builds the S-box from its definition']],
-    lib: { file: 'aes128/aes128_lib.py', deps: ['cryptography'], install: 'python3 -m pip install cryptography', run: 'python3 aes128_lib.py', notes: [['run', 'Library route: AES from the cryptography package, one block in ECB with no padding, to match the demo']] } },
+    lib: { file: 'aes128/aes128_lib.py', deps: ['cryptography'], install: 'python3 -m pip install cryptography', run: 'python3 aes128_lib.py', notes: [['run', 'Library route: AES from the cryptography package; hex block and hex key only (no text input, no padding), one raw block in ECB']], sampleInput: { action: 'encrypt', format: 'hex', block: '3243f6a8885a308d313198a2e0370734', key: '2b7e151628aed2a6abf7158809cf4f3c' } } },
   rsa: { jsId: 'rsa', action: 'encrypt', cli: 'encrypt|decrypt p q e text|numbers "message"',
     py: [['is_prime', 'Trial-division primality test'], ['rsa_keys', 'n = p·q, φ(n) = (p−1)(q−1), checks e, finds d'], ['inverse_table', 'Extended Euclid (r, t rows) to find d = e⁻¹ mod φ(n)'], ['mod_pow', 'Left-to-right square-and-multiply'], ['run', 'Text → code points (or numbers), checks m < n, raises to e or d']],
     cpp: [['mulmod', '(a·b) mod n without 64-bit overflow'], ['modPow', 'Left-to-right square-and-multiply'], ['inverseOf', 'Extended Euclid for d'], ['codePoints', 'UTF-8 text → Unicode code points'], ['main', 'Key checks, blocks, encryption/decryption']] },
@@ -42,7 +42,7 @@ const spec = {
     py: [['pad', 'Appends 0x80, zeros and the 64-bit length'], ['message_schedule', 'Expands 16 words into W₀…W₆₃'], ['compress', '64 rounds on registers a…h, then the feed-forward'], ['sha256', 'Processes every 64-byte block and outputs the hex digest']],
     cpp: [['pad', 'Appends 0x80, zeros and the 64-bit length'], ['messageSchedule', 'W₀…W₆₃'], ['compress', '64 rounds on a…h plus feed-forward'], ['sha256', 'Hex digest']],
     lib: { file: 'sha256/sha256_lib.py', deps: [], install: 'none (hashlib is in the standard library)', run: 'python3 sha256_lib.py', notes: [['hashlib.sha256', 'Library route: the standard library implementation']] } },
-  base64: { jsId: 'base64', action: 'encode', cli: 'encode|decode "text"',
+  base64: { jsId: 'base64', pyFile: 'base64/base64_demo.py', pyRun: 'python3 base64_demo.py', action: 'encode', cli: 'encode|decode "text"',
     py: [['encode', '3 bytes → four 6-bit groups → four characters, = for missing bytes'], ['normalize', 'Accepts base64url and missing padding, validates the input'], ['decode', 'Characters → sextets → bytes, rejects non-canonical padding bits'], ['decode_to_display', 'Strict UTF-8 text (BOM kept) or hex for binary data']],
     cpp: [['encode', '3 bytes → 4 characters'], ['normalize', 'base64url / padding handling and validation'], ['decode', 'Characters → sextets → bytes'], ['validUtf8', 'Strict UTF-8 check; otherwise the bytes are printed in hex']] },
 };
@@ -58,10 +58,10 @@ for (const [key, s] of Object.entries(spec)) {
   manifest[s.jsId] = {
     folder: dir,
     warning: WARN,
-    python: { file: `${dir}/${dir}.py`, deps: [], install: 'none (Python 3 standard library only)', run: `python3 ${dir}.py`, usage: `python3 ${dir}.py ${s.cli}`, sampleInput, expectedOutput, notes: notes(s.py) },
+    python: { file: s.pyFile || `${dir}/${dir}.py`, deps: [], install: 'none (Python 3 standard library only)', run: s.pyRun || `python3 ${dir}.py`, usage: `${s.pyRun || `python3 ${dir}.py`} ${s.cli}`, sampleInput, expectedOutput, notes: notes(s.py) },
     cpp: { file: `${dir}/${dir}.cpp`, deps: [], install: 'g++ with C++17 (standard library only)', run: `g++ -std=c++17 -O2 ${dir}.cpp -o ${dir} && ./${dir}`, usage: `./${dir} ${s.cli}`, sampleInput, expectedOutput, notes: notes(s.cpp) },
   };
-  if (s.lib) manifest[s.jsId].pythonLibrary = { file: s.lib.file, deps: s.lib.deps, install: s.lib.install, run: s.lib.run, sampleInput, expectedOutput, notes: notes(s.lib.notes), route: 'library' };
+  if (s.lib) manifest[s.jsId].pythonLibrary = { file: s.lib.file, deps: s.lib.deps, install: s.lib.install, run: s.lib.run, sampleInput: s.lib.sampleInput || sampleInput, expectedOutput, notes: notes(s.lib.notes), route: 'library' };
 }
 writeFileSync(join(here, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`wrote ${Object.keys(manifest).length} methods to code/manifest.json`);

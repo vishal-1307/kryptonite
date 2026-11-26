@@ -4,7 +4,7 @@
 // primes, no padding and one character per block: deterministic, malleable and easy
 // to factor. Real RSA uses 2048+ bit keys, OAEP padding for encryption and PSS for
 // signatures. For real data use a vetted library (OpenSSL EVP_PKEY with
-// RSA_PKCS1_OAEP_PADDING, libsodium, or your platform's crypto API).
+// RSA_PKCS1_OAEP_PADDING, or Python's cryptography package).
 //
 // Build & run:
 //   g++ -std=c++17 -O2 rsa.cpp -o rsa && ./rsa

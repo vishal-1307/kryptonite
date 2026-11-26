@@ -59,10 +59,14 @@ std::string check(long long p, long long g, long long a, long long b) {
     u64 ord = orderOf(u64(g), u64(p));
     if (ord <= 2) return "g = " + std::to_string(g) + " is a trivial generator: its powers mod " + std::to_string(p) + " only take " + std::to_string(ord) + " value(s).";
     if (a < 2 || b < 2 || a > p - 2 || b > p - 2) return "Secrets a and b must be between 2 and p - 2 (" + std::to_string(p - 2) + ").";
-    u64 A = modPow(g, a, p), B = modPow(g, b, p);
+    u64 A = modPow(g, a, p), B = modPow(g, b, p), secret = modPow(B, a, p);
+    // RFC 7919 §5.1 / NIST SP 800-56A: a received public value y must satisfy 1 < y < p-1.
     if (A == 1) return "Degenerate parameters: A = g^a mod p = 1.";
     if (B == 1) return "Degenerate parameters: B = g^b mod p = 1.";
-    if (modPow(B, a, p) == 1) return "Degenerate parameters: the shared secret is 1.";
+    if (A == u64(p) - 1) return "Degenerate parameters: A = g^a mod p = p − 1. A public value of p − 1 makes the shared secret 1 or p − 1, so Eve can guess it (RFC 7919: 1 < y < p − 1).";
+    if (B == u64(p) - 1) return "Degenerate parameters: B = g^b mod p = p − 1. A public value of p − 1 makes the shared secret 1 or p − 1, so Eve can guess it (RFC 7919: 1 < y < p − 1).";
+    if (secret == 1) return "Degenerate parameters: the shared secret is 1.";
+    if (secret == u64(p) - 1) return "Degenerate parameters: the shared secret is p − 1. Implementations must reject values of 1 and p − 1 (RFC 7919).";
     return "";
 }
 

@@ -435,15 +435,13 @@
         "action": "encrypt",
         "format": "hex",
         "block": "3243f6a8885a308d313198a2e0370734",
-        "keyFormat": "hex",
-        "padding": "zero",
         "key": "2b7e151628aed2a6abf7158809cf4f3c"
       },
       "expectedOutput": "3925841d02dc09fbdc118597196a0b32",
       "notes": [
         {
           "fn": "run",
-          "what": "Library route: AES from the cryptography package, one block in ECB with no padding, to match the demo"
+          "what": "Library route: AES from the cryptography package; hex block and hex key only (no text input, no padding), one raw block in ECB"
         }
       ],
       "route": "library"
@@ -681,11 +679,11 @@
     "folder": "base64",
     "warning": "Educational code for learning how the algorithm works. Do not use it to protect real data; use a vetted library.",
     "python": {
-      "file": "base64/base64.py",
+      "file": "base64/base64_demo.py",
       "deps": [],
       "install": "none (Python 3 standard library only)",
-      "run": "python3 base64.py",
-      "usage": "python3 base64.py encode|decode \"text\"",
+      "run": "python3 base64_demo.py",
+      "usage": "python3 base64_demo.py encode|decode \"text\"",
       "sampleInput": {
         "action": "encode",
         "text": "Man"

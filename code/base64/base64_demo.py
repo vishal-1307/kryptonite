@@ -6,14 +6,14 @@ Base64 is an ENCODING, not encryption: there is no key and anyone can decode it.
 Never use it to hide secrets. In real programs use the standard `base64` module.
 
 Usage:
-    python3 base64.py                       # sample: encode "Man" -> TWFu
-    python3 base64.py encode "Hello"
-    python3 base64.py decode "SGVsbG8="     # also accepts base64url (- _) and missing padding
+    python3 base64_demo.py                       # sample: encode "Man" -> TWFu
+    python3 base64_demo.py encode "Hello"
+    python3 base64_demo.py decode "SGVsbG8="     # also accepts base64url (- _) and missing padding
 
 Output (same as Kryptonite): encoding prints the Base64 text; decoding prints the
 decoded text (byte-exact: a UTF-8 BOM is kept) or, if the bytes are not valid
 UTF-8, their hex.
-(Note: this file is named base64.py like the stdlib module; it does not import it.)
+(This file is named base64_demo.py so that `import base64` in this folder still loads Python's standard library module, not this demo.)
 """
 import re
 import sys
