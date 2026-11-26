@@ -362,13 +362,9 @@ function renderMethod(method, initial) {
   let lastRun = null; // { action, input, output } of the last successful run
   const ioValue = () => (method.ioField ? form.read()[method.ioField] : undefined);
   function setAction(id, rerun) {
-    const prevAction = action;
     action = actions.find((a) => a.id === id) || actions[0];
-    // Round trip: switching Encrypt → Decrypt carries the result over, but ONLY if the message box still holds
-    // exactly what produced that result. Text typed or pasted since then (even before the auto-run fired) is kept.
-    if (rerun && method.ioField && lastRun && action.inverse === lastRun.action && prevAction.id === lastRun.action && ioValue() === lastRun.input) {
-      form.setValues({ [method.ioField]: lastRun.output });
-    }
+    // Switching Encrypt ↔ Decrypt never touches the user's text. Carrying a result over is explicit only:
+    // the "<Inverse> this result →" button below the output.
     actionBar.querySelectorAll('button').forEach((b) => { const on = b.dataset.action === action.id; b.classList.toggle('is-active', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
     form.setAction(action.id);
     const inv = action.inverse && actions.find((a) => a.id === action.inverse);
@@ -391,10 +387,11 @@ function renderMethod(method, initial) {
   function scheduleRun() { scope.clearTimeout(pending); pending = scope.setTimeout(() => { pending = null; run(); }, 450); }
 
   let output = { raw: null, isError: true };
-  function setOutput(text, { raw = null, isError = false } = {}) {
+  function setOutput(text, { raw = null, isError = false, calm = false } = {}) {
     output = { raw, isError };
     outValue.textContent = text;
-    outValue.classList.toggle('is-error', isError);
+    outValue.classList.toggle('is-error', isError && !calm);
+    outValue.classList.toggle('is-waiting', calm);
     outValue.classList.toggle('is-placeholder', !isError && raw === '');
     const can = copyableOutput(output) !== null;
     copyBtn.setAttribute('aria-disabled', String(!can));
@@ -418,8 +415,11 @@ function renderMethod(method, initial) {
     const values = form.read();
     const { fieldErrors, formError } = validate(method, action.id, values);
     form.showErrors(fieldErrors);
-    formErr.textContent = formError || '';
-    if (Object.keys(fieldErrors).length || formError) { showFailed(formError || Object.values(fieldErrors).join(' ')); return; }
+    // Each problem is shown once: field errors under their field, anything else once above the Run button.
+    // The output and visualization panels only say that they are waiting for valid input.
+    const fieldMsgs = Object.values(fieldErrors).filter(Boolean);
+    formErr.textContent = formError && !fieldMsgs.includes(formError) ? formError : '';
+    if (fieldMsgs.length || formError) { showFailed(); return; }
     try {
       const res = runAction(method, action.id, values);
       outLabel.textContent = res.outputLabel || (action.label === 'Encrypt' ? 'Ciphertext' : action.label === 'Decrypt' ? 'Plaintext' : 'Result');
@@ -432,20 +432,18 @@ function renderMethod(method, initial) {
       lastRun = { action: action.id, input: method.ioField ? values[method.ioField] : undefined, output: res.output };
     } catch (e) {
       formErr.textContent = e.message;
-      showFailed(e.message);
+      showFailed();
     }
   }
-  function showFailed(message) {
-    const msg = message || 'The input is not valid.';
+  function showFailed() {
     lastRun = null;
-    outLabel.textContent = 'Fix the input to see a result';
-    setOutput(msg, { isError: true });
+    outLabel.textContent = 'Result';
+    setOutput('Waiting for valid input', { isError: true, calm: true });
     stepList.replaceChildren(); ticks.replaceChildren();
     player.load([]);
-    stepTitle.textContent = 'Can’t run yet';
-    const panel = h('div', { class: 'stage-error', role: 'alert' },
-      h('span', { class: 'stage-error-icon', 'aria-hidden': 'true' }, '!'),
-      h('div', {}, h('strong', {}, 'Input problem'), h('p', {}, msg)));
+    stepTitle.textContent = 'Waiting for valid input';
+    const panel = h('div', { class: 'stage-wait' },
+      h('p', {}, 'Fix the input problem shown with the inputs, and the steps will appear here.'));
     stage.replaceChildren(panel);
     stageNodes = [];
     anim.enter(panel);

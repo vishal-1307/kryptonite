@@ -42,9 +42,9 @@
   font-size: 16px;
   color-scheme: light;
 }
-/* Dark: pure black page; surfaces only slightly raised. */
+/* Dark: pure black page and panels (#000); borders and cells give the structure. */
 .dark {
-  --bg: #000000; --surface: #0d0d0d; --cell: #161616;
+  --bg: #000000; --surface: #000000; --cell: #161616;
   --border: #262626; --line: #333333; --input-border: #3d3d3d; --border-strong: #5a5a5a;
   --text: #f2f2f2; --muted: #a1a1a1;
   --accent: #4ade80; --on-accent: #000000; --accent-soft: #0c2a17; --accent-ink: #86efac;
@@ -73,6 +73,8 @@ button { -webkit-tap-highlight-color: transparent; }
 .skip { position: absolute; left: var(--s2); top: -4rem; min-height: 44px; display: inline-flex; align-items: center; z-index: 20; padding: var(--s2) var(--s3); background: var(--text); color: var(--bg); border-radius: var(--r); }
 .skip:focus { top: var(--s2); }
 main:focus { outline: none; }
+/* Skip link / focusMain(): keep the target clear of the sticky top bar. */
+main, main h1 { scroll-margin-top: calc(var(--top-h) + var(--s3)); }
 
 /* ---------- App shell: sidebar + page ---------- */
 :root { --sb-w: 248px; --sb-rail: 64px; --top-h: 56px; }
@@ -209,6 +211,9 @@ kbd { display: inline-block; font-size: var(--fs-xs); font-weight: 500; line-hei
 .tab { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 var(--s3); border-radius: var(--r-sm); color: var(--muted) !important; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
 .tab:hover { color: var(--text) !important; background: var(--bg); }
 .tab.is-active { background: var(--text); color: var(--bg) !important; font-weight: 600; }
+.dark .tab:hover:not(.is-active) { background: var(--cell); }
+/* Very narrow phones: the four tabs sit in a 2×2 grid so every label fits without scrolling. */
+@media (max-width: 400px) { .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; } }
 
 /* ---------- Visualizer workspace ----------
    Mobile first: inputs → visualization (player sticks to the bottom of the screen) → explanation.
@@ -225,6 +230,7 @@ kbd { display: inline-block; font-size: var(--fs-xs); font-weight: 500; line-hei
 .segmented[hidden] { display: none; }
 .segmented button { flex: 1 1 0; min-width: 0; min-height: 36px; line-height: 1.15; padding-block: 3px; border: 0; background: transparent; padding: 0 var(--s2); border-radius: var(--r-sm); cursor: pointer; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); overflow-wrap: anywhere; }
 .segmented button:hover:not(.is-active):not(:disabled) { color: var(--text); background: var(--bg); }
+.dark .segmented button:hover:not(.is-active):not(:disabled) { background: var(--cell); }
 .segmented button.is-active { background: var(--text); color: var(--bg); font-weight: 600; }
 .segmented button:disabled { opacity: .45; cursor: default; }
 .examples { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
@@ -569,6 +575,8 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 .ro-row { color: var(--accent-ink); } .ro-col, .ro-k { color: var(--key); }
 .ro-bin { font-size: var(--fs-xs); color: var(--muted); word-break: break-all; }
 .bg-tip { margin: 0; }
+.bg-detail { margin: 0; max-width: 100%; padding: var(--s2) var(--s3); border-radius: var(--r); background: var(--bg); border: 1px solid var(--border); font-family: var(--mono); font-size: var(--fs-sm); text-align: center; overflow-wrap: break-word; }
+.bg-detail[hidden] { display: none; }
 @media (hover: none) { .bg-tip { display: none; } }
 .bg-shifts { display: grid; grid-template-rows: repeat(4, 2.15em); gap: 3px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; align-items: center; margin-bottom: 1.6rem; font-family: var(--mono); }
 
@@ -677,10 +685,9 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 
 /* error state (invalid input) — shown in the output and the stage */
 .out-value.is-error { background: var(--danger-soft); color: var(--danger); font-family: var(--sans); font-size: var(--fs-md); font-weight: 600; word-break: normal; border: 1px solid var(--danger); }
-.stage-error { display: flex; gap: var(--s3); align-items: flex-start; max-width: 60ch; padding: var(--s4) var(--s5); border-radius: var(--r); border: 1px solid var(--danger); background: var(--bg); color: var(--text); }
-.stage-error strong { color: var(--danger); font-size: var(--fs-md); }
-.stage-error p { margin: var(--s1) 0 0; font-size: var(--fs-md); line-height: 1.5; }
-.stage-error-icon { flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--danger); color: var(--bg); font-weight: 700; font-size: var(--fs-sm); }
+.out-value.is-waiting { color: var(--muted); font-family: var(--sans); font-size: var(--fs-md); font-weight: 500; word-break: normal; }
+.stage-wait { max-width: 46ch; padding: var(--s3) var(--s4); border: 1px dashed var(--line); border-radius: var(--r); color: var(--muted); text-align: center; }
+.stage-wait p { margin: 0; }
 
 
 /* Layout-aware wording in step text ("worked out below" / "on the right"); core/app.js sets .layout-side. */
@@ -821,6 +828,6 @@ figcaption { margin-top: var(--s2); font-size: var(--fs-xs); color: var(--muted)
 .has-overflow:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* Current step: not colour alone — a marker and an outline as well */
 .step-list li.is-current button { outline: 2px solid currentColor; outline-offset: -2px; }
-.step-list li.is-current button::before { content: "▸ "; }
+.step-list li.is-current button::before { content: "▸ " / ""; } /* decorative: aria-current carries the meaning */
 .bg-row { display: contents; }
 .ws-inputs, .ws-explain, .ws-viz { position: relative; } /* keeps absolutely positioned sr-only text inside its scrolling column */

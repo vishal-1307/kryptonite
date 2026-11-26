@@ -82,9 +82,48 @@ export default {
       row.addEventListener('click', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) pin(Number(c.dataset.i)); });
       row.addEventListener('mouseover', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) pin(Number(c.dataset.i)); });
     }
+    // Visible detail for steps without a lookup/XOR readout (ShiftRows, MixColumns, key schedule…): shown when a
+    // byte is focused, clicked or Enter is pressed, so keyboard inspection is visible, not only announced.
+    let detail = null;
+    const itemOf = (c) => [...refs.entries()].find(([, cs]) => cs.includes(c));
+    const detailText = (c) => {
+      const found = itemOf(c); if (!found) return '';
+      const [it] = found; const i = Number(c.dataset.i), r = i % 4, col = i >> 2;
+      const base = `${it.label}: byte ${i} (row ${r}, col ${col}) = ${hex(it.bytes[i])}`;
+      if (first && outItem && it === outItem && (op === 'ShiftRows' || op === 'InvShiftRows')) {
+        const fc = op === 'ShiftRows' ? (col + r) % 4 : (col - r + 4) % 4;
+        return r === 0 ? `${base}. Row 0 does not move.` : `${base}, moved from ${first.label} row ${r}, col ${fc} (shift ${op === 'ShiftRows' ? 'left' : 'right'} by ${r}).`;
+      }
+      if (first && outItem && it === outItem && (op === 'MixColumns' || op === 'InvMixColumns')) {
+        return `${base}, mixed from ${first.label} column ${col}: ${[0, 1, 2, 3].map((k) => hex(first.bytes[k + 4 * col])).join(' ')}.`;
+      }
+      if (first && outItem && it === first && (op === 'ShiftRows' || op === 'InvShiftRows')) {
+        const tc = op === 'ShiftRows' ? (col - r + 4) % 4 : (col + r) % 4;
+        return r === 0 ? `${base}. Row 0 does not move.` : `${base}, goes to ${outItem.label} row ${r}, col ${tc}.`;
+      }
+      if (first && outItem && it === first && (op === 'MixColumns' || op === 'InvMixColumns')) return `${base}, feeds ${outItem.label} column ${col}.`;
+      return `${base}.`;
+    };
+    if (!lines) {
+      detail = h('p', { class: 'bg-detail', hidden: true });
+      el.append(detail);
+    }
+    const inspect = (c) => {
+      const i = Number(c.dataset.i);
+      if (lines) { pin(i); said.textContent = [...lines[i].children].map((x) => x.textContent.trim()).join(': '); return lines[i]; }
+      const t = detailText(c); detail.textContent = t; detail.hidden = !t; said.textContent = t;
+      for (const cells of refs.values()) cells.forEach((x) => x.classList.toggle('is-focus', x === c));
+      return detail;
+    };
     row.addEventListener('keydown', (e) => {
       const c = e.target.closest('.cell[data-i]');
       if (!c) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault(); e.stopPropagation();
+        const box = inspect(c);
+        if (box && box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });
+        return;
+      }
       const i = Number(c.dataset.i), r = i % 4, col = i >> 2;
       const moves = { ArrowLeft: [r, col - 1], ArrowRight: [r, col + 1], ArrowUp: [r - 1, col], ArrowDown: [r + 1, col], Home: [r, 0], End: [r, 3] };
       if (!moves[e.key]) return;
@@ -99,10 +138,9 @@ export default {
     row.addEventListener('focusin', (e) => {
       const c = e.target.closest('.cell[data-i]');
       if (!c) return;
-      const i = Number(c.dataset.i);
-      if (lines) { pin(i); said.textContent = [...lines[i].children].map((x) => x.textContent.trim()).join(': '); }
-      else said.textContent = '';
+      inspect(c);
     });
+    if (!lines) row.addEventListener('click', (e) => { const c = e.target.closest('.cell[data-i]'); if (c) inspect(c); });
 
     el.afterMount = () => {
       const bCells = first && refs.get(first), aCells = outItem && refs.get(outItem);
